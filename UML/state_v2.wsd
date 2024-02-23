@@ -1,0 +1,19 @@
+@startuml
+[*] --> Idle
+
+Idle --> MovingUp : Call received
+Idle --> MovingDown : Call received
+
+MovingUp --> Idle : Reached desired floor
+MovingDown --> Idle : Reached desired floor
+
+Idle --> EmergencyStop : Stop button pressed
+EmergencyStop --> Idle : Stop button released
+
+Idle --> DoorOpen : Elevator stops at a floor
+DoorOpen --> DoorClosed : After 3 seconds
+
+DoorClosed --> DoorOpen : Open door
+DoorOpen --> DoorClosed : Close door
+
+@enduml

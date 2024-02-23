@@ -1,0 +1,55 @@
+' Fikser faktisk diagram fra h-filer etter vi har skrevet
+
+@startuml
+
+class Elevator{
+    direction : bool
+    current_floor : int
+    obstruction : bool
+
+    move()
+    stop()
+    status()
+}
+
+class Elevator_controller {
+    floor_id : int
+    position : int
+    direction : bool
+}
+
+
+class Door {
+    open: bool
+
+    open()
+    close()
+}
+
+
+
+class Button{
+    illuminate : bool
+
+    illuminate()
+    cancel_illuminate()
+    status()
+}
+
+class Elevator_button{
+    floor_num : int
+}
+
+class Floor_button{
+    floor_num : int
+    direction : bool 
+}
+
+Elevator_controller --> Elevator
+Elevator_controller  --> Door
+Button --> Elevator_controller
+Elevator_button --|> Button
+Floor_button --|> Button
+
+
+@enduml 

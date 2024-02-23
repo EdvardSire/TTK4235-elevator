@@ -1,0 +1,27 @@
+@startuml
+[*] --> Idle
+
+state "Door closing" as close{
+}
+
+Idle --> close : Request and Not obstruction
+Idle --> Idle : Obstruction or Stop
+
+close --> move_up : Door closed and request up
+close --> move_down : Door closed and request down
+close --> close : Obstruction
+
+move_down --> moving : started
+move_up --> moving : started
+
+moving --> stopping : Approaching requested floor or Stop
+
+stopping --> door_opening : Stopped
+
+door_opening --> at_floor
+
+at_floor : start_timer()
+
+at_floor --> Idle : No request or Stop
+at_floor --> close : Request
+@enduml
