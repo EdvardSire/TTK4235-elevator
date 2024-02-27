@@ -1,11 +1,24 @@
 #include "hardware.h"
 #include "requests.h"
+#include <errno.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+
+// msleep(): Sleep for the requested number of milliseconds.
+void msleep(long msec) {
+  struct timespec ts;
+  int res;
+
+  ts.tv_sec = msec / 1000;
+  ts.tv_nsec = (msec % 1000) * 1000000;
+
+  nanosleep(&ts, &ts);
+}
 
 static void clear_all_order_lights() {
   HardwareOrder order_types[3] = {HARDWARE_ORDER_UP, HARDWARE_ORDER_INSIDE,
@@ -83,30 +96,49 @@ Request *requestToConsume(Request *BaseRequest) {
   return BaseRequest->child;
 }
 
+int queueLength(Request *BaseRequest) {
+  int sum = 0;
+  Request *current_request = BaseRequest;
+  while (current_request->child != NULL) {
+    current_request = current_request->child;
+    sum += 1;
+  }
+
+  return sum;
+}
+
 void consumeRequest(State *FSM, Request *request, Request *BaseRequest) {
+  printf("Queue length: %d", queueLength(BaseRequest));
+
   FSM->moving = true;
   FSM->going_to_floor = request->floor;
-  if(FSM->going_to_floor > FSM->current_floor)
+  if (FSM->going_to_floor > FSM->current_floor)
     hardware_command_movement(HARDWARE_MOVEMENT_UP);
   else
     hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
 
-  purge_requests(BaseRequest);
+  if (request->child == NULL) {
+    free(request);
+    BaseRequest->child = NULL;
+  } else {
+    BaseRequest->child = request->child;
+    free(request);
+  }
 }
 
 void pollRequest(Request *BaseRequest) {
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
       insert_request_last(floor, HARDWARE_ORDER_DOWN, BaseRequest);
-      sleep((unsigned int)1);
+      msleep(200);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_UP)) {
       insert_request_last(floor, HARDWARE_ORDER_UP, BaseRequest);
-      sleep((unsigned int)1);
+      msleep(200);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE)) {
       insert_request_last(floor, HARDWARE_ORDER_INSIDE, BaseRequest);
-      sleep((unsigned int)1);
+      msleep(200);
     }
   }
 }
@@ -145,12 +177,15 @@ int main() {
         }
         handleCloseDoor(&FSM);
         printf("Door closed\n");
-      }
+      } else
+        pollRequest(&BaseRequest);
+
 
       if (FSM.moving) {
         printf("Moving\n");
         while (FSM.current_floor != FSM.going_to_floor) {
           FSM.current_floor = get_floor();
+          pollRequest(&BaseRequest);
           lights();
         }
         handleAtFloor(&FSM);
