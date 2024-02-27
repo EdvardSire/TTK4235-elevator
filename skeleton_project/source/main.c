@@ -59,6 +59,8 @@ static int get_floor() {
 typedef struct {
   int current_floor;
   int going_to_floor;
+  int door_open;
+  time_t timestamp; //seconds
 } State;
 
 
@@ -70,10 +72,23 @@ typedef struct {
 
 } Request;
 
-void atFloor(State *FSM) {
-  FSM->current_floor = get_floor(); 
+void handleAtFloor(State *FSM) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
+  FSM->current_floor = get_floor(); 
   hardware_command_door_open(true);
+  FSM->door_open = true;
+  FSM->timestamp = time(0);
+}
+
+void handleCloseDoor(State *FSM) {
+  hardware_command_door_open(false);
+  FSM->door_open = false;
+}
+
+int requestToConsume(Request *BaseRequest) {
+  if(BaseRequest->child == NULL)
+    return false;
+  return true;
 }
 
 int main(){
@@ -93,45 +108,28 @@ int main(){
       hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
       FSM.current_floor = get_floor();
     }
-    atFloor(&FSM);
+    handleAtFloor(&FSM);
     // End Init
 
 
-    FSM.going_to_floor = 0;
-    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+    // FSM.going_to_floor = 3;
     while(true){
-      FSM.current_floor = get_floor();
       if(!hardware_read_stop_signal()) {
         hardware_command_stop_light(false);
 
-
-        // Create reqs
-        
-
-        if(!hardware_read_obstruction_signal()) {
-          hardware_read_obstruction_signal(false);
-
-          if(FSM.current_floor == FSM.going_to_floor) {
-            hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-            hardware_command_door_open(true);
-          }
+        if(FSM.door_open) {
+          while(abs(difftime(FSM.timestamp, time(0))) <= 3)
+            if(hardware_read_obstruction_signal()) 
+              FSM.timestamp = time(0);
+          handleCloseDoor(&FSM);
         }
-      }  else {
-        hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-        hardware_command_stop_light(true);
+
+        if(requestToConsume(&BaseRequest)) {
+          // Handle request
+        }
       }
 
       lights();
-      // if(hardware_read_floor_sensor(0))
-      //   hardware_command_movement(HARDWARE_MOVEMENT_UP);
-      //
-      // if(hardware_read_stop_signal())
-      //   printf("hehe");
-
-      // if(hardware_read_floor_sensor(HARDWARE_NUMBER_OF_FLOORS-2))
-      //   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-
-      // printf("%d \n", FSM.current_floor);
     }
 
     return 0;
