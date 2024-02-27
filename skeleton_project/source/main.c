@@ -86,8 +86,11 @@ Request *requestToConsume(Request *BaseRequest) {
 void consumeRequest(State *FSM, Request *request, Request *BaseRequest) {
   FSM->moving = true;
   FSM->going_to_floor = request->floor;
-  printf("boom: %d\n", request->floor);
-  hardware_command_movement(HARDWARE_MOVEMENT_UP);
+  if(FSM->going_to_floor > FSM->current_floor)
+    hardware_command_movement(HARDWARE_MOVEMENT_UP);
+  else
+    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+
   purge_requests(BaseRequest);
 }
 
