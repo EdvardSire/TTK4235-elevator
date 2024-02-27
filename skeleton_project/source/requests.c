@@ -5,9 +5,9 @@
 #include "hardware.h"
 #include "requests.h"
 
-Request base_req  = {.child=NULL, .parent=NULL};
 
 void insert_request_last(int floor, HardwareOrder orderType, Request* base_req){
+    printf("hit\n");
     Request* current_request = base_req;
     while(current_request->child != NULL ){
         current_request = current_request->child;
@@ -15,7 +15,7 @@ void insert_request_last(int floor, HardwareOrder orderType, Request* base_req){
     
     
     Request* new_req  = (Request *)malloc(sizeof(Request));
-    if (new_req =! NULL){
+    if ((new_req != NULL)){
         new_req->floor = floor;
         new_req->orderType = orderType;
         new_req -> parent = current_request;
@@ -24,14 +24,14 @@ void insert_request_last(int floor, HardwareOrder orderType, Request* base_req){
     }
 }
 
-void purge_reqests(){
-    Request* current_request = &base_req;
+void purge_requests(Request * base_req){
+    Request* current_request = base_req;
     while(current_request->child != NULL ){
-        current_request = (*current_request).child;
+        current_request = current_request->child;
     };
-    current_request = (*current_request).parent;
+
     while(current_request->parent != NULL ){
-       free(current_request->child);
        current_request = current_request->parent;
+       free(current_request->child);
     }
 }
