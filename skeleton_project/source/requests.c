@@ -22,7 +22,7 @@ void insert_request_last(int floor, HardwareOrder orderType, Request* base_req){
         new_req -> child = NULL;
         current_request->child = new_req;
     }
-}
+};
 
 void purge_reqests(){
     Request* current_request = &base_req;
@@ -34,4 +34,4 @@ void purge_reqests(){
        free(current_request->child);
        current_request = current_request->parent;
     }
-}
+};
