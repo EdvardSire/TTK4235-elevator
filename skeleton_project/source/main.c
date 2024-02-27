@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <time.h>
 #include "hardware.h"
 
 static void clear_all_order_lights(){
@@ -46,6 +47,25 @@ static void lights() {
         }
 }
 
+static int get_floor() {
+  for(int i = 0; i < HARDWARE_NUMBER_OF_FLOORS-1; i++)
+    if(hardware_read_floor_sensor(i)) {
+      hardware_command_floor_indicator_on(i);
+      return i;
+    }
+  return -1;
+}
+
+typedef struct {
+  int current_floor;
+  int going_to_floor;
+} State;
+
+void atFloor(State *FSM) {
+  FSM->current_floor = get_floor(); 
+  hardware_command_movement(HARDWARE_MOVEMENT_STOP);
+  hardware_command_door_open(true);
+}
 
 int main(){
     if(hardware_init() != 0){
@@ -53,23 +73,53 @@ int main(){
         exit(1);
     }
     printf("Press the stop button on the elevator panel to exit\n");
+    printf("Test: %d", get_floor());
 
+    State FSM;
 
-    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+    FSM.current_floor = get_floor();
+    while (FSM.current_floor == -1) {
+      hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+      FSM.current_floor = get_floor();
+    }
+    atFloor(&FSM);
 
-    while(true){
-
-      if(hardware_read_floor_sensor(0))
-        hardware_command_movement(HARDWARE_MOVEMENT_UP);
-
-      if(hardware_read_stop_signal())
-        printf("hehe");
-
-      // if(hardware_read_floor_sensor(HARDWARE_NUMBER_OF_FLOORS-2))
-      //   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-
+    while(true) {
       lights();
     }
+
+    // FSM.going_to_floor = 0;
+    // hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+    // while(true){
+    //   FSM.current_floor = get_floor();
+    //   if(!hardware_read_stop_signal()) {
+    //     hardware_command_stop_light(false);
+
+    //     if(!hardware_read_obstruction_signal()) {
+    //       hardware_read_obstruction_signal(false);
+
+    //       if(FSM.current_floor == FSM.going_to_floor) {
+    //         hardware_command_movement(HARDWARE_MOVEMENT_STOP);
+    //         hardware_command_door_open(true);
+    //       }
+    //     }
+    //   }  else {
+    //     hardware_command_movement(HARDWARE_MOVEMENT_STOP);
+    //     hardware_command_stop_light(true);
+    //   }
+
+    //   lights();
+    //   // if(hardware_read_floor_sensor(0))
+    //   //   hardware_command_movement(HARDWARE_MOVEMENT_UP);
+    //   //
+    //   // if(hardware_read_stop_signal())
+    //   //   printf("hehe");
+
+    //   // if(hardware_read_floor_sensor(HARDWARE_NUMBER_OF_FLOORS-2))
+    //   //   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
+
+    //   // printf("%d \n", FSM.current_floor);
+    // }
 
     return 0;
 }
