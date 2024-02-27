@@ -1,19 +1,19 @@
+#ifndef REQUESTS
+#define REQUESTS
 
-#ifndef REQUESTS_H
-#define REQUESTS_H
 #include "hardware.h"
-#include <stdbool.h>
 
-typedef struct {
+typedef struct Request Request;
+struct Request {
     int floor; // -1 indicates no request
     HardwareOrder orderType;
-    struct request* child;
-    struct request* parent;
-} Request;
+    Request* child;
+    Request* parent;
+};
 
-extern Request base_req;
-
-void insert_request_last(int floor,  HardwareOrder orderType);
+void insert_request_last(int floor, HardwareOrder orderType, Request* base_req);
 void purge_requests();
+
+//put your function headers here
 
 #endif

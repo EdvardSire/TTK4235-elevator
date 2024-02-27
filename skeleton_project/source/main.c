@@ -1,55 +1,67 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include "hardware.h"
+#include "requests.h"
+#include <errno.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
-#include "hardware.h"
+#include <unistd.h>
 
-static void clear_all_order_lights(){
-    HardwareOrder order_types[3] = {
-        HARDWARE_ORDER_UP,
-        HARDWARE_ORDER_INSIDE,
-        HARDWARE_ORDER_DOWN
-    };
+// msleep(): Sleep for the requested number of milliseconds.
+void msleep(long msec) {
+  struct timespec ts;
+  int res;
 
-    for(int f = 0; f < HARDWARE_NUMBER_OF_FLOORS; f++){
-        for(int i = 0; i < 3; i++){
-            HardwareOrder type = order_types[i];
-            hardware_command_order_light(f, type, 0);
-        }
+  ts.tv_sec = msec / 1000;
+  ts.tv_nsec = (msec % 1000) * 1000000;
+
+  nanosleep(&ts, &ts);
+}
+
+static void clear_all_order_lights() {
+  HardwareOrder order_types[3] = {HARDWARE_ORDER_UP, HARDWARE_ORDER_INSIDE,
+                                  HARDWARE_ORDER_DOWN};
+
+  for (int f = 0; f < HARDWARE_NUMBER_OF_FLOORS; f++) {
+    for (int i = 0; i < 3; i++) {
+      HardwareOrder type = order_types[i];
+      hardware_command_order_light(f, type, 0);
     }
+  }
 }
 
 static void lights() {
-        /* All buttons must be polled, like this: */
-        for(int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++){
-            if(hardware_read_floor_sensor(floor)){
-                hardware_command_floor_indicator_on(floor);
-            }
-        }
+  /* All buttons must be polled, like this: */
+  for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
+    if (hardware_read_floor_sensor(floor)) {
+      hardware_command_floor_indicator_on(floor);
+    }
+  }
 
-        /* Lights are set and cleared like this: */
-        for(int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++){
-            /* Internal orders */
-            if(hardware_read_order(floor, HARDWARE_ORDER_INSIDE)){
-                hardware_command_order_light(floor, HARDWARE_ORDER_INSIDE, 1);
-            }
+  /* Lights are set and cleared like this: */
+  for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
+    /* Internal orders */
+    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE)) {
+      hardware_command_order_light(floor, HARDWARE_ORDER_INSIDE, 1);
+    }
 
-            /* Orders going up */
-            if(hardware_read_order(floor, HARDWARE_ORDER_UP)){
-                hardware_command_order_light(floor, HARDWARE_ORDER_UP, 1);
-            }
+    /* Orders going up */
+    if (hardware_read_order(floor, HARDWARE_ORDER_UP)) {
+      hardware_command_order_light(floor, HARDWARE_ORDER_UP, 1);
+    }
 
-            /* Orders going down */
-            if(hardware_read_order(floor, HARDWARE_ORDER_DOWN)){
-                hardware_command_order_light(floor, HARDWARE_ORDER_DOWN, 1);
-            }
-        }
+    /* Orders going down */
+    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
+      hardware_command_order_light(floor, HARDWARE_ORDER_DOWN, 1);
+    }
+  }
 }
 
 static int get_floor() {
-  for(int i = 0; i < HARDWARE_NUMBER_OF_FLOORS-1; i++)
-    if(hardware_read_floor_sensor(i)) {
+  for (int i = 0; i < HARDWARE_NUMBER_OF_FLOORS; i++)
+    if (hardware_read_floor_sensor(i)) {
       hardware_command_floor_indicator_on(i);
       return i;
     }
@@ -60,21 +72,14 @@ typedef struct {
   int current_floor;
   int going_to_floor;
   int door_open;
-  time_t timestamp; //seconds
+  int moving;
+  time_t timestamp; // seconds
 } State;
-
-
-typedef struct {
-  int going_to_floor;
-  HardwareOrder orderType;
-  struct Request* child;
-  struct Request* parent;
-
-} Request;
 
 void handleAtFloor(State *FSM) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-  FSM->current_floor = get_floor(); 
+  FSM->current_floor = get_floor();
+  FSM->moving = false;
   hardware_command_door_open(true);
   FSM->door_open = true;
   FSM->timestamp = time(0);
@@ -85,71 +90,116 @@ void handleCloseDoor(State *FSM) {
   FSM->door_open = false;
 }
 
-Request* requestToConsume(Request *BaseRequest) {
-  if(BaseRequest->child == NULL)
+Request *requestToConsume(Request *BaseRequest) {
+  if (BaseRequest->child == NULL)
     return NULL;
   return BaseRequest->child;
 }
 
-void consumeRequest(Request *Order) {
+int queueLength(Request *BaseRequest) {
+  int sum = 0;
+  Request *current_request = BaseRequest;
+  while (current_request->child != NULL) {
+    current_request = current_request->child;
+    sum += 1;
+  }
+
+  return sum;
 }
 
-void pollRequest(Request *BaseRequest) {
-  for(int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++){
-    if(hardware_read_order(floor, HARDWARE_ORDER_DOWN))
-      insertRequest(floor, HARDWARE_ORDER_DOWN);
-    hardware_read_order(floor, HARDWARE_ORDER_UP);
-      insertRequest(floor, HARDWARE_ORDER_UP);
-    hardware_read_order(floor, HARDWARE_ORDER_INSIDE);
-      insertRequest(floor, HARDWARE_ORDER_INSIDE);
+void consumeRequest(State *FSM, Request *request, Request *BaseRequest) {
+  printf("Queue length: %d", queueLength(BaseRequest));
+
+  FSM->moving = true;
+  FSM->going_to_floor = request->floor;
+  if (FSM->going_to_floor > FSM->current_floor)
+    hardware_command_movement(HARDWARE_MOVEMENT_UP);
+  else
+    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+
+  if (request->child == NULL) {
+    free(request);
+    BaseRequest->child = NULL;
+  } else {
+    BaseRequest->child = request->child;
+    free(request);
   }
 }
 
-int main(){
-    if(hardware_init() != 0){
-        fprintf(stderr, "Unable to initialize hardware\n");
-        exit(1);
+void pollRequest(Request *BaseRequest) {
+  for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
+    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
+      insert_request_last(floor, HARDWARE_ORDER_DOWN, BaseRequest);
+      msleep(200);
     }
-    printf("Press the stop button on the elevator panel to exit\n");
-    printf("Test: %d", get_floor());
+    if (hardware_read_order(floor, HARDWARE_ORDER_UP)) {
+      insert_request_last(floor, HARDWARE_ORDER_UP, BaseRequest);
+      msleep(200);
+    }
+    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE)) {
+      insert_request_last(floor, HARDWARE_ORDER_INSIDE, BaseRequest);
+      msleep(200);
+    }
+  }
+}
 
+int main() {
+  if (hardware_init() != 0) {
+    fprintf(stderr, "Unable to initialize hardware\n");
+    exit(1);
+  }
+  printf("Press the stop button on the elevator panel to exit\n");
 
-    // Start Init
-    State FSM;
-    Request BaseRequest = {.parent = NULL, .child = NULL};
-    Request Order = {.going_to_floor = 3, .orderType = HARDWARE_ORDER_UP, .parent=&BaseRequest};
+  // Start Init
+  State FSM;
+  Request BaseRequest = {.parent = NULL, .child = NULL};
+  FSM.current_floor = get_floor();
+  while (FSM.current_floor == -1) {
+    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
     FSM.current_floor = get_floor();
-    while (FSM.current_floor == -1) {
-      hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
-      FSM.current_floor = get_floor();
-    }
-    handleAtFloor(&FSM);
-    // End Init
+  }
+  handleAtFloor(&FSM);
+  // End Init
 
+  // FSM.going_to_floor = 3;
+  while (true) {
+    FSM.current_floor = get_floor();
+    if (!hardware_read_stop_signal()) {
+      hardware_command_stop_light(false);
 
-    // FSM.going_to_floor = 3;
-    while(true){
-      if(!hardware_read_stop_signal()) {
-        hardware_command_stop_light(false);
-
-        if(FSM.door_open) {
-          while(abs(difftime(FSM.timestamp, time(0))) <= 3)
-            if(hardware_read_obstruction_signal()) 
-              FSM.timestamp = time(0);
-          handleCloseDoor(&FSM);
+      if (FSM.door_open) {
+        printf("Door open\n");
+        while (abs(difftime(FSM.timestamp, time(0))) <= 3) {
+          pollRequest(&BaseRequest);
+          lights();
+          if (hardware_read_obstruction_signal())
+            FSM.timestamp = time(0);
         }
+        handleCloseDoor(&FSM);
+        printf("Door closed\n");
+      } else
+        pollRequest(&BaseRequest);
 
-        Request * possibleRequest  = requestToConsume(&BaseRequest);
-        if(possibleRequest != NULL)
-          consumeRequest(possibleRequest);
-          
 
-
-      } else { // if stop signal
-        hardware_command_stop_light(true);
+      if (FSM.moving) {
+        printf("Moving\n");
+        while (FSM.current_floor != FSM.going_to_floor) {
+          FSM.current_floor = get_floor();
+          pollRequest(&BaseRequest);
+          lights();
+        }
+        handleAtFloor(&FSM);
+      } else {
+        Request *possibleRequest = requestToConsume(&BaseRequest);
+        if (possibleRequest != NULL)
+          consumeRequest(&FSM, possibleRequest, &BaseRequest);
       }
-      lights();
-    }
 
-    return 0;
+    } else { // if stop signal
+      hardware_command_stop_light(true);
+    }
+    lights();
+  }
+
+  return 0;
 }
