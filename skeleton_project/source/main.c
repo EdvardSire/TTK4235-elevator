@@ -66,7 +66,7 @@ typedef struct {
 
 typedef struct {
   int going_to_floor;
-  int direction;
+  HardwareOrder orderType;
   struct Request* child;
   struct Request* parent;
 
@@ -85,10 +85,24 @@ void handleCloseDoor(State *FSM) {
   FSM->door_open = false;
 }
 
-int requestToConsume(Request *BaseRequest) {
+Request* requestToConsume(Request *BaseRequest) {
   if(BaseRequest->child == NULL)
-    return false;
-  return true;
+    return NULL;
+  return BaseRequest->child;
+}
+
+void consumeRequest(Request *Order) {
+}
+
+void pollRequest(Request *BaseRequest) {
+  for(int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++){
+    if(hardware_read_order(floor, HARDWARE_ORDER_DOWN))
+      insertRequest(floor, HARDWARE_ORDER_DOWN);
+    hardware_read_order(floor, HARDWARE_ORDER_UP);
+      insertRequest(floor, HARDWARE_ORDER_UP);
+    hardware_read_order(floor, HARDWARE_ORDER_INSIDE);
+      insertRequest(floor, HARDWARE_ORDER_INSIDE);
+  }
 }
 
 int main(){
@@ -103,6 +117,7 @@ int main(){
     // Start Init
     State FSM;
     Request BaseRequest = {.parent = NULL, .child = NULL};
+    Request Order = {.going_to_floor = 3, .orderType = HARDWARE_ORDER_UP, .parent=&BaseRequest};
     FSM.current_floor = get_floor();
     while (FSM.current_floor == -1) {
       hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
@@ -124,11 +139,15 @@ int main(){
           handleCloseDoor(&FSM);
         }
 
-        if(requestToConsume(&BaseRequest)) {
-          // Handle request
-        }
-      }
+        Request * possibleRequest  = requestToConsume(&BaseRequest);
+        if(possibleRequest != NULL)
+          consumeRequest(possibleRequest);
+          
 
+
+      } else { // if stop signal
+        hardware_command_stop_light(true);
+      }
       lights();
     }
 
