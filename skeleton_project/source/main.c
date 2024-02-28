@@ -1,10 +1,10 @@
 #include "hardware.h"
 #include "requests.h"
+#include "FSM.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 
 void msleep(long msec) {
   struct timespec ts;
@@ -63,14 +63,6 @@ static int get_floor() {
     }
   return -1;
 }
-
-typedef struct {
-  int current_floor;
-  int going_to_floor;
-  int door_open;
-  int moving;
-  time_t timestamp; // seconds
-} State;
 
 void handleAtFloor(State FSM[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
