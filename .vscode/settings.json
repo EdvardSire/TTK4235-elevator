@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "time.h": "c",
+        "hardware.h": "c",
+        "requests.h": "c",
+        "fsm.h": "c"
+    },
+    "clangd.arguments": [
+        "-std=c11"
+    ],
+    "clang-format.executable": "/usr/bin/clang-format-"
+}
