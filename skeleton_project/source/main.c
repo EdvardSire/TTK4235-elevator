@@ -1,3 +1,4 @@
+#include "hardware.h"
 #include "requests.h"
 #include <math.h>
 #include <stdbool.h>
@@ -67,6 +68,7 @@ void handleAtFloor(State FSM[static 1]) {
   FSM->current_floor = get_floor();
   FSM->moving = false;
   hardware_command_door_open(true);
+  hardware_command_order_light(FSM->current_floor,  HARDWARE_ORDER_INSIDE, false);
   FSM->door_open = true;
   FSM->timestamp = time(0);
 }
@@ -82,20 +84,9 @@ Request *requestToConsume(Request BaseRequest[static 1]) {
   return BaseRequest->child;
 }
 
-int queueLength(Request BaseRequest[static 1]) {
-  int sum = 0;
-  Request *current_request = BaseRequest;
-  while (current_request->child != NULL) {
-    current_request = current_request->child;
-    sum += 1;
-  }
-
-  return sum;
-}
 
 void consumeRequest(State FSM[static 1], Request request[static 1],
                     Request BaseRequest[static 1]) {
-  printf("Queue length: %d", queueLength(BaseRequest));
 
   FSM->moving = true;
   FSM->going_to_floor = request->floor;
@@ -114,6 +105,7 @@ void consumeRequest(State FSM[static 1], Request request[static 1],
 }
 
 void pollRequest(Request BaseRequest[static 1], State FSM[static 1]) {
+  lights();
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
       insert_request(floor, HARDWARE_ORDER_DOWN, BaseRequest, FSM);
@@ -158,27 +150,28 @@ int main() {
         printf("Door open\n");
         while (fabs(difftime(FSM.timestamp, time(0))) <= 3.0f) {
           pollRequest(&BaseRequest, &FSM);
-          lights();
           if (hardware_read_obstruction_signal())
             FSM.timestamp = time(0);
         }
         handleCloseDoor(&FSM);
         printf("Door closed\n");
-      } else
+      } else {
         pollRequest(&BaseRequest, &FSM);
+      }
 
       if (FSM.moving) {
         printf("Moving\n");
         while (FSM.current_floor != FSM.going_to_floor) {
           FSM.current_floor = get_floor();
           pollRequest(&BaseRequest, &FSM);
-          lights();
         }
         handleAtFloor(&FSM);
       } else {
         Request *possibleRequest = requestToConsume(&BaseRequest);
         if (possibleRequest != NULL)
           consumeRequest(&FSM, possibleRequest, &BaseRequest);
+
+        lights();
       }
 
     } else { // if stop signal

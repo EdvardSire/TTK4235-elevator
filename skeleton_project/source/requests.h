@@ -12,9 +12,12 @@ struct Request {
   Request *parent;
 };
 
+
 void insert_request_last(int floor, HardwareOrder orderType, Request *base_req);
 void insert_request(int floor, HardwareOrder orderType, Request *base_req, State *state);
 void purge_requests(Request *base_req);
+int queueLength(Request BaseRequest[static 1]);
+
 
 // put your function headers here
 
