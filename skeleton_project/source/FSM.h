@@ -5,7 +5,6 @@
 
 typedef struct {
   int current_floor;
-  int going_to_floor;
   int door_open;
   int moving;
   time_t timestamp; // seconds
