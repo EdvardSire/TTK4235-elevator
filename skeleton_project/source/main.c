@@ -1,13 +1,10 @@
 #include "hardware.h"
 #include "requests.h"
-#include <errno.h>
-#include <pthread.h>
-#include <signal.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 // msleep(): Sleep for the requested number of milliseconds.
 void msleep(long msec) {
@@ -76,7 +73,7 @@ typedef struct {
   time_t timestamp; // seconds
 } State;
 
-void handleAtFloor(State *FSM) {
+void handleAtFloor(State FSM[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
   FSM->current_floor = get_floor();
   FSM->moving = false;
@@ -85,18 +82,18 @@ void handleAtFloor(State *FSM) {
   FSM->timestamp = time(0);
 }
 
-void handleCloseDoor(State *FSM) {
+void handleCloseDoor(State FSM[static 1]) {
   hardware_command_door_open(false);
   FSM->door_open = false;
 }
 
-Request *requestToConsume(Request *BaseRequest) {
+Request *requestToConsume(Request BaseRequest[static 1]) {
   if (BaseRequest->child == NULL)
     return NULL;
   return BaseRequest->child;
 }
 
-int queueLength(Request *BaseRequest) {
+int queueLength(Request BaseRequest[static 1]) {
   int sum = 0;
   Request *current_request = BaseRequest;
   while (current_request->child != NULL) {
@@ -107,7 +104,8 @@ int queueLength(Request *BaseRequest) {
   return sum;
 }
 
-void consumeRequest(State *FSM, Request *request, Request *BaseRequest) {
+void consumeRequest(State FSM[static 1], Request request[static 1],
+                    Request BaseRequest[static 1]) {
   printf("Queue length: %d", queueLength(BaseRequest));
 
   FSM->moving = true;
@@ -126,7 +124,7 @@ void consumeRequest(State *FSM, Request *request, Request *BaseRequest) {
   }
 }
 
-void pollRequest(Request *BaseRequest) {
+void pollRequest(Request BaseRequest[static 1]) {
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
       insert_request_last(floor, HARDWARE_ORDER_DOWN, BaseRequest);
@@ -169,7 +167,7 @@ int main() {
 
       if (FSM.door_open) {
         printf("Door open\n");
-        while (abs(difftime(FSM.timestamp, time(0))) <= 3) {
+        while (fabs(difftime(FSM.timestamp, time(0))) <= 3.0f) {
           pollRequest(&BaseRequest);
           lights();
           if (hardware_read_obstruction_signal())
@@ -179,7 +177,6 @@ int main() {
         printf("Door closed\n");
       } else
         pollRequest(&BaseRequest);
-
 
       if (FSM.moving) {
         printf("Moving\n");
