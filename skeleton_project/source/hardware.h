@@ -11,9 +11,9 @@
  * @brief Movement type used in @c hardware_command_movement.
  */
 typedef enum {
-    HARDWARE_MOVEMENT_UP,
-    HARDWARE_MOVEMENT_STOP,
-    HARDWARE_MOVEMENT_DOWN
+  HARDWARE_MOVEMENT_UP,
+  HARDWARE_MOVEMENT_STOP,
+  HARDWARE_MOVEMENT_DOWN
 } HardwareMovement;
 
 /**
@@ -21,9 +21,9 @@ typedef enum {
  * and in @c hardware_command_order_light.
  */
 typedef enum {
-    HARDWARE_ORDER_UP,
-    HARDWARE_ORDER_INSIDE,
-    HARDWARE_ORDER_DOWN
+  HARDWARE_ORDER_UP,
+  HARDWARE_ORDER_INSIDE,
+  HARDWARE_ORDER_DOWN
 } HardwareOrder;
 
 /**
@@ -105,7 +105,6 @@ void hardware_command_floor_indicator_on(int floor);
  * 0 to turn it off.
  */
 void hardware_command_stop_light(int on);
-
 
 /**
  * @brief Sets the light in a button corresponding to an order

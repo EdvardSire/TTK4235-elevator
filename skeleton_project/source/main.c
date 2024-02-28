@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-// msleep(): Sleep for the requested number of milliseconds.
 void msleep(long msec) {
   struct timespec ts;
   int res;
