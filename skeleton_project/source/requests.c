@@ -1,6 +1,4 @@
 #include "requests.h"
-#include "FSM.h"
-#include "hardware.h"
 #include <stdbool.h>
 #include <stdlib.h>
 

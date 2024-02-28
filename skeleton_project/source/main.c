@@ -1,6 +1,4 @@
-#include "hardware.h"
 #include "requests.h"
-#include "FSM.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -115,18 +113,18 @@ void consumeRequest(State FSM[static 1], Request request[static 1],
   }
 }
 
-void pollRequest(Request BaseRequest[static 1]) {
+void pollRequest(Request BaseRequest[static 1], State FSM[static 1]) {
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
-      insert_request_last(floor, HARDWARE_ORDER_DOWN, BaseRequest);
+      insert_request(floor, HARDWARE_ORDER_DOWN, BaseRequest, FSM);
       msleep(200);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_UP)) {
-      insert_request_last(floor, HARDWARE_ORDER_UP, BaseRequest);
+      insert_request(floor, HARDWARE_ORDER_UP, BaseRequest, FSM);
       msleep(200);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE)) {
-      insert_request_last(floor, HARDWARE_ORDER_INSIDE, BaseRequest);
+      insert_request(floor, HARDWARE_ORDER_INSIDE, BaseRequest, FSM);
       msleep(200);
     }
   }
@@ -159,7 +157,7 @@ int main() {
       if (FSM.door_open) {
         printf("Door open\n");
         while (fabs(difftime(FSM.timestamp, time(0))) <= 3.0f) {
-          pollRequest(&BaseRequest);
+          pollRequest(&BaseRequest, &FSM);
           lights();
           if (hardware_read_obstruction_signal())
             FSM.timestamp = time(0);
@@ -167,13 +165,13 @@ int main() {
         handleCloseDoor(&FSM);
         printf("Door closed\n");
       } else
-        pollRequest(&BaseRequest);
+        pollRequest(&BaseRequest, &FSM);
 
       if (FSM.moving) {
         printf("Moving\n");
         while (FSM.current_floor != FSM.going_to_floor) {
           FSM.current_floor = get_floor();
-          pollRequest(&BaseRequest);
+          pollRequest(&BaseRequest, &FSM);
           lights();
         }
         handleAtFloor(&FSM);

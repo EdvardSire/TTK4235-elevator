@@ -1,7 +1,8 @@
-#ifndef REQUESTS
-#define REQUESTS
+#ifndef ___REQUESTS
+#define ___REQUESTS
 
 #include "hardware.h"
+#include "FSM.h"
 
 typedef struct Request Request;
 struct Request {
@@ -12,7 +13,8 @@ struct Request {
 };
 
 void insert_request_last(int floor, HardwareOrder orderType, Request *base_req);
-void purge_requests();
+void insert_request(int floor, HardwareOrder orderType, Request *base_req, State *state);
+void purge_requests(Request *base_req);
 
 // put your function headers here
 
