@@ -54,9 +54,9 @@ void insert_request(int floor, HardwareOrder orderType,
         baseRequest->child->floor < currentRequest->floor;
 
     if ((elevatorGoingUp && !requestAboveCurrentGoal &&
-         (currentRequest->orderType != HARDWARE_ORDER_DOWN)) ||
+         (currentRequest->orderType != HARDWARE_ORDER_DOWN) && !(state->current_floor > floor)) ||
         (!elevatorGoingUp && requestAboveCurrentGoal &&
-         (currentRequest->orderType != HARDWARE_ORDER_UP))) {
+         (currentRequest->orderType != HARDWARE_ORDER_UP) && !(state->current_floor < floor))) {
       Request *newRequest = (Request *)malloc(sizeof(Request));
       _new_request(newRequest, currentRequest->parent, floor, orderType);
       break;

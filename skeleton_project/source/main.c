@@ -101,7 +101,6 @@ void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
     hardware_command_movement(HARDWARE_MOVEMENT_STOP);
     FSM->moving = false;
     purge_requests(baseRequest);
-    lights();
     stop_timestamp = time(0);
     while (fabs(difftime(stop_timestamp, time(0))) <= 3.0f) {
       //TODO POLL FOR REQUESTS
