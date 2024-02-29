@@ -71,6 +71,8 @@ void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   floor_request_filled(FSM->current_floor, baseRequest);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE,
                                false);
+  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_UP, false);
+  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_DOWN, false);
   FSM->door_open = true;
   FSM->timestamp = time(0);
 }
@@ -101,6 +103,7 @@ void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
     hardware_command_movement(HARDWARE_MOVEMENT_STOP);
     FSM->moving = false;
     purge_requests(baseRequest);
+    clear_all_order_lights();
     stop_timestamp = time(0);
     while (fabs(difftime(stop_timestamp, time(0))) <= 3.0f) {
       //TODO POLL FOR REQUESTS
@@ -109,7 +112,6 @@ void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
         stop_timestamp = time(0);
     }
   }
-
 }
 
 void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
