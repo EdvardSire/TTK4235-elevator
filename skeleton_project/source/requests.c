@@ -1,9 +1,34 @@
 #include "requests.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
-void insert_request_last(int floor, HardwareOrder orderType,
-                         Request *base_req) {
+void _free_request(Request request[static 1]) {
+  if (request->child == NULL) {
+    Request *parent = request->parent;
+    free(parent->child); // request
+    parent->child = NULL;
+  } else {
+    Request *parent = request->parent;
+    Request *child = request->child;
+    free(parent->child); // request
+    parent->child = child;
+    child->parent = parent;
+  }
+}
+
+void _new_request(Request newRequest[static 1], Request parent[static 1],
+                  int floor, HardwareOrder orderType) {
+  if (newRequest == NULL)
+    exit(0);
+  newRequest->floor = floor;
+  newRequest->orderType = orderType;
+  newRequest->parent = parent;
+  newRequest->child = parent->child; // important this first
+  parent->child = newRequest;
+}
+
+void insert_request_last(int floor, HardwareOrder orderType, Request base_req[static 1]) {
   Request *current_request = base_req;
   while (current_request->child != NULL)
     current_request = current_request->child;
@@ -29,9 +54,9 @@ void insert_request(int floor, HardwareOrder orderType,
         baseRequest->child->floor < currentRequest->floor;
 
     if ((elevatorGoingUp && !requestAboveCurrentGoal &&
-         currentRequest->orderType != HARDWARE_ORDER_DOWN) ||
+         (currentRequest->orderType != HARDWARE_ORDER_DOWN)) ||
         (!elevatorGoingUp && requestAboveCurrentGoal &&
-         currentRequest->orderType != HARDWARE_ORDER_UP)) {
+         (currentRequest->orderType != HARDWARE_ORDER_UP))) {
       Request *newRequest = (Request *)malloc(sizeof(Request));
       _new_request(newRequest, currentRequest->parent, floor, orderType);
       break;
@@ -82,27 +107,5 @@ int queueLength(Request BaseRequest[static 1]) {
   return sum;
 }
 
-void _new_request(Request newRequest[static 1], Request parent[static 1],
-                  int floor, HardwareOrder orderType) {
-  if (newRequest == NULL)
-    exit(0);
-  newRequest->floor = floor;
-  newRequest->orderType = orderType;
-  newRequest->parent = parent;
-  newRequest->child = parent->child; // important this first
-  parent->child = newRequest;
-}
 
-void _free_request(Request request[static 1]) {
-  if (request->child == NULL) {
-    Request *parent = request->parent;
-    free(parent->child); // request
-    parent->child = NULL;
-  } else {
-    Request *parent = request->parent;
-    Request *child = request->child;
-    free(parent->child); // request
-    parent->child = child;
-    child->parent = parent;
-  }
-}
+

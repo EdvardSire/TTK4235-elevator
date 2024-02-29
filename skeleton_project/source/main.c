@@ -101,6 +101,7 @@ void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
     hardware_command_movement(HARDWARE_MOVEMENT_STOP);
     FSM->moving = false;
     purge_requests(baseRequest);
+    lights();
     stop_timestamp = time(0);
     while (fabs(difftime(stop_timestamp, time(0))) <= 3.0f) {
       //TODO POLL FOR REQUESTS
@@ -117,18 +118,18 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
   unsigned int mseconds = 100;
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
-      insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest);
-      // insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
+      // insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest);
+      insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
       msleep(mseconds);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_UP)) {
-      insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest);
-      // insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
+      // insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest);
+      insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
       msleep(mseconds);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE)) {
-      insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest);
-      // insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
+      // insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest);
+      insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
       msleep(mseconds);
     }
   }
@@ -140,7 +141,7 @@ int main() {
     fprintf(stderr, "Unable to initialize hardware\n");
     exit(1);
   }
-  printf("Press the stop button on the elevator panel to exit\n");
+  printf("Yuhu, elevator!\n"); 
 
   // Start Init
   State FSM;
