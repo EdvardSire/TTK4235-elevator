@@ -69,8 +69,7 @@ void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   FSM->moving = false;
   hardware_command_door_open(true);
   floor_request_filled(FSM->current_floor, baseRequest);
-  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE,
-                               false);
+  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE, false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_UP, false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_DOWN, false);
   FSM->door_open = true;
@@ -89,7 +88,6 @@ int requestToConsume(Request baseRequest[static 1]) {
 }
 
 void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
-  printf("hit\n");
   FSM->moving = true;
   if (baseRequest->child->floor > FSM->current_floor)
     hardware_command_movement(HARDWARE_MOVEMENT_UP);
@@ -121,17 +119,17 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
       // insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest);
       insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
-      msleep(mseconds);
+      //msleep(mseconds);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_UP)) {
       // insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest);
       insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
-      msleep(mseconds);
+      //msleep(mseconds);
     }
     if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE)) {
       // insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest);
       insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
-      msleep(mseconds);
+      //msleep(mseconds);
     }
   }
   handleEmergencyStop(FSM, baseRequest);
@@ -161,19 +159,16 @@ int main() {
     hardware_command_stop_light(false);
 
     if (FSM.door_open) {
-      printf("Door open\n");
       while (fabs(difftime(FSM.timestamp, time(0))) <= 1.5f) {
         pollHardware(&FSM, &baseRequest);
         if (hardware_read_obstruction_signal())
           FSM.timestamp = time(0);
       }
       handleCloseDoor(&FSM);
-      printf("Door closed\n");
     } else
       pollHardware(&FSM, &baseRequest);
 
     if (FSM.moving) {
-      printf("Moving\n");
       while (FSM.current_floor != baseRequest.child->floor) {
         FSM.current_floor = get_floor();
         pollHardware(&FSM, &baseRequest);
