@@ -42,11 +42,13 @@ void insert_request_last(int floor, HardwareOrder orderType, Request base_req[st
     new_req->child = NULL;
     current_request->child = new_req;
   }
-  printf("Queue length: %d \n", queueLength(base_req));
+  // printf("Queue length: %d \n", queueLength(base_req));
 };
 
 void insert_request(int floor, HardwareOrder orderType,
                     Request baseRequest[static 1], State state[static 1]) {
+  printf("Inserted\n");
+  gettimeofday(&state->tv, NULL);
   Request *currentRequest = baseRequest;
   while (currentRequest->child != NULL) {
     currentRequest = currentRequest->child;
@@ -68,9 +70,7 @@ void insert_request(int floor, HardwareOrder orderType,
   if (currentRequest->child == NULL) {
     Request *newRequest = (Request *)malloc(sizeof(Request));
     _new_request(newRequest, currentRequest, floor, orderType);
-    printf("Inserted end\n");
   }
-  printf("Queue length: %d \n", queueLength(baseRequest));
 }
 
 void purge_requests(Request base_req[static 1]) {

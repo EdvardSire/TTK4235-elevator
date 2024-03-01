@@ -4,16 +4,12 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
-void msleep(long msec) {
-  struct timespec ts;
-  int res;
+#define DEBUG1 false
+#define DEBUG2 true
 
-  ts.tv_sec = msec / 1000;
-  ts.tv_nsec = (msec % 1000) * 1000000;
-
-  nanosleep(&ts, &ts);
-}
+#define DOUBLEMAGIC MAGIC+1
 
 static void clear_all_order_lights() {
   HardwareOrder order_types[3] = {HARDWARE_ORDER_UP, HARDWARE_ORDER_INSIDE,
@@ -63,12 +59,28 @@ static int get_floor() {
   return -1;
 }
 
+void freeRequest(Request * req) {
+  if(req != NULL) {
+  // NEVER GIVE BASE HERE
+  Request * parent = req->parent;
+  Request * child = req->child;
+  free(req);
+  parent->child = child;
+  if(child != NULL)
+    child->parent = parent;
+  }
+}
+
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
+  DEBUG2 ? printf("Length %d", queueLength(baseRequest)) : (void)0;
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
   FSM->current_floor = get_floor();
   FSM->moving = false;
   hardware_command_door_open(true);
-  floor_request_filled(FSM->current_floor, baseRequest);
+  //test
+  // floor_request_filled(FSM->current_floor, baseRequest);
+  freeRequest(baseRequest->child);
+
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE,
                                false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_UP, false);
@@ -76,6 +88,7 @@ void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   FSM->door_open = true;
   FSM->timestamp = time(0);
 }
+
 
 void handleCloseDoor(State FSM[static 1]) {
   hardware_command_door_open(false);
@@ -89,7 +102,7 @@ int requestToConsume(Request baseRequest[static 1]) {
 }
 
 void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
-  printf("hit\n");
+  DEBUG1 ? printf("Consume\n") : (void)0;
   FSM->moving = true;
   if (baseRequest->child->floor > FSM->current_floor)
     hardware_command_movement(HARDWARE_MOVEMENT_UP);
@@ -114,38 +127,60 @@ void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
   }
 }
 
+int compareTimeNow(struct timeval old[MAGIC], int index) {
+    // long POLL_TIMEOUT = 200; // milliseconds
+    struct timeval end;
+    gettimeofday(&end, NULL);
+
+    double diff_sec = end.tv_sec - old[index].tv_sec;
+    double diff_usec = end.tv_usec - old[index].tv_usec;
+    double diff = diff_sec + (diff_usec / 1000000.0);
+
+    if(diff >= 0.2f) {
+    DEBUG1 ? printf("diff: %lf\n", diff) : (void)0;
+      return true;
+    }
+    return false;
+}
+
+
 void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
   lights();
-  unsigned int mseconds = 100;
+  int index = 0;
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
-    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN)) {
-      // insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest);
-      insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
-      msleep(mseconds);
+    if (hardware_read_order(floor, HARDWARE_ORDER_UP) && compareTimeNow(FSM->tv, index)) {
+      gettimeofday(&FSM->tv[index], NULL);
+      insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest);
+      // insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
     }
-    if (hardware_read_order(floor, HARDWARE_ORDER_UP)) {
-      // insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest);
-      insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
-      msleep(mseconds);
+    index++;
+
+    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE) && compareTimeNow(FSM->tv, index)) {
+      gettimeofday(&FSM->tv[index], NULL);
+      insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest);
+      // insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
     }
-    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE)) {
-      // insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest);
-      insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
-      msleep(mseconds);
+    index++;
+
+    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN) && compareTimeNow(FSM->tv, index)) {
+      gettimeofday(&FSM->tv[index], NULL);
+      insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest);
+      // insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
     }
+    index++;
   }
   handleEmergencyStop(FSM, baseRequest);
 }
 
 int main() {
-  if (hardware_init() != 0) {
-    fprintf(stderr, "Unable to initialize hardware\n");
+  if(hardware_init())
     exit(1);
-  }
-  printf("Yuhu, elevator!\n"); 
 
   // Start Init
-  State FSM;
+  State FSM = {};
+  for(int i= 0; i < DOUBLEMAGIC; i++)
+    gettimeofday(&FSM.tv[i], NULL);
+
   Request baseRequest = {.parent = NULL, .child = NULL};
   FSM.current_floor = get_floor();
   while (FSM.current_floor == -1) {
@@ -161,19 +196,19 @@ int main() {
     hardware_command_stop_light(false);
 
     if (FSM.door_open) {
-      printf("Door open\n");
+      DEBUG1 ? printf("Door open\n") : (void)0;
       while (fabs(difftime(FSM.timestamp, time(0))) <= 1.5f) {
         pollHardware(&FSM, &baseRequest);
         if (hardware_read_obstruction_signal())
           FSM.timestamp = time(0);
       }
       handleCloseDoor(&FSM);
-      printf("Door closed\n");
+      DEBUG1 ? printf("Door closed\n") : (void)0;
     } else
       pollHardware(&FSM, &baseRequest);
 
     if (FSM.moving) {
-      printf("Moving\n");
+      DEBUG1 ? printf("Moving\n") : (void)0;
       while (FSM.current_floor != baseRequest.child->floor) {
         FSM.current_floor = get_floor();
         pollHardware(&FSM, &baseRequest);

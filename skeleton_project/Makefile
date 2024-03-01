@@ -17,7 +17,7 @@ else
 endif
 
 CC := gcc
-CFLAGS := -O0 -g3 -Wall -D_GNU_SOURCE -std=c11 -I$(SOURCE_DIR)
+CFLAGS := -O0 -g3 -Wall -D_GNU_SOURCE -std=c11 -I$(SOURCE_DIR) -lrt
 
 .DEFAULT_GOAL := elevator
 
