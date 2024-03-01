@@ -22,6 +22,8 @@ void freeAtFloor(Request baseRequest[static 1]) {
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
   FSM->current_floor = get_floor();
+  FSM->previous_floor = FSM->current_floor;
+  FSM->moving = false;
   hardware_command_door_open(true);
   FSM->moving = false;
   if(baseRequest->child != NULL)
