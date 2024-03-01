@@ -4,17 +4,16 @@
 #include <stdio.h>
 
 void _free_request(Request request[static 1]) {
-  if (request->child == NULL) {
-    Request *parent = request->parent;
-    free(parent->child); // request
+  Request *parent = request->parent;
+  if (request->child == NULL) { // At bottom
     parent->child = NULL;
-  } else {
-    Request *parent = request->parent;
+  } 
+  else {
     Request *child = request->child;
-    free(parent->child); // request
     parent->child = child;
     child->parent = parent;
   }
+  free(request); // request
 }
 
 void _new_request(Request newRequest[static 1], Request parent[static 1],
@@ -48,19 +47,33 @@ void insert_request_last(int floor, HardwareOrder orderType, Request base_req[st
 void insert_request(int floor, HardwareOrder orderType,
                     Request baseRequest[static 1], State state[static 1]) {
   Request *currentRequest = baseRequest;
+   
+
   while (currentRequest->child != NULL) {
+    currentRequest = currentRequest->child;
+    if(currentRequest->floor == floor && currentRequest->orderType == orderType){
+      return;
+    }
+  }
+
+  int i = 0;
+  currentRequest = baseRequest;
+  while (currentRequest->child != NULL) {
+    i++;
     currentRequest = currentRequest->child;
     bool elevatorGoingUp = state->current_floor < baseRequest->child->floor;
     bool requestAboveCurrentGoal =
         baseRequest->child->floor < currentRequest->floor;
 
     if ((elevatorGoingUp && !requestAboveCurrentGoal &&
-         (currentRequest->orderType != HARDWARE_ORDER_DOWN) && !(state->current_floor > floor)) ||
+         (currentRequest->orderType != HARDWARE_ORDER_DOWN) && !(state->current_floor >= floor)) ||
         (!elevatorGoingUp && requestAboveCurrentGoal &&
-         (currentRequest->orderType != HARDWARE_ORDER_UP) && !(state->current_floor < floor))) {
+         (currentRequest->orderType != HARDWARE_ORDER_UP) && !(state->current_floor <= floor))) {
       Request *newRequest = (Request *)malloc(sizeof(Request));
       _new_request(newRequest, currentRequest->parent, floor, orderType);
-      break;
+      printf("Inserted %d\n", i);
+      printf("Queue length: %d \n", queueLength(baseRequest));
+      return;
     }
   }
 
@@ -69,8 +82,8 @@ void insert_request(int floor, HardwareOrder orderType,
     Request *newRequest = (Request *)malloc(sizeof(Request));
     _new_request(newRequest, currentRequest, floor, orderType);
     printf("Inserted end\n");
+    printf("Queue length: %d \n", queueLength(baseRequest));
   }
-  printf("Queue length: %d \n", queueLength(baseRequest));
 }
 
 void purge_requests(Request base_req[static 1]) {
@@ -108,6 +121,3 @@ int queueLength(Request BaseRequest[static 1]) {
 
   return sum;
 }
-
-
-
