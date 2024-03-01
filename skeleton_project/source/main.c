@@ -7,12 +7,14 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define DOUBLEMAGIC MAGIC+1
+#define DOUBLEMAGIC MAGIC + 1
+
+#define INSERT_LAST false
 
 void freeAtFloor(Request baseRequest[static 1]) {
   Request *childChild = baseRequest->child->child;
   free(baseRequest->child);
-  if(childChild != NULL) {
+  if (childChild != NULL) {
     childChild->parent = baseRequest;
     baseRequest->child = childChild;
   } else
@@ -21,19 +23,20 @@ void freeAtFloor(Request baseRequest[static 1]) {
 
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-  FSM->current_floor = get_floor();
+  FSM->current_floor = get_floor(FSM->current_floor);
   FSM->previous_floor = FSM->current_floor;
   FSM->moving = false;
   hardware_command_door_open(true);
   FSM->moving = false;
-  if(baseRequest->child != NULL)
+  if (baseRequest->child != NULL)
     freeAtFloor(baseRequest);
+  FSM->door_open = true;
+  FSM->timestamp = time(0);
+
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE,
                                false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_UP, false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_DOWN, false);
-  FSM->door_open = true;
-  FSM->timestamp = time(0);
 }
 
 void handleCloseDoor(State FSM[static 1]) {
@@ -80,23 +83,29 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
   int index = 0;
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
 
-    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN) && compareTimeNow(FSM->tv, index)) {
-      insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest);
-      // insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
+    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN) &&
+        compareTimeNow(FSM->tv, index)) {
+      INSERT_LAST
+          ? insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest)
+          : handleRequest(floor, baseRequest, FSM);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
 
-    if (hardware_read_order(floor, HARDWARE_ORDER_UP) && compareTimeNow(FSM->tv, index)) {
-      insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest);
-      // insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
+    if (hardware_read_order(floor, HARDWARE_ORDER_UP) &&
+        compareTimeNow(FSM->tv, index)) {
+      INSERT_LAST
+          ? insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest)
+          : handleRequest(floor, baseRequest, FSM);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
 
-    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE) && compareTimeNow(FSM->tv, index)) {
-      insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest);
-      // insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
+    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE) &&
+        compareTimeNow(FSM->tv, index)) {
+      INSERT_LAST
+          ? insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest)
+          : handleRequest(floor, baseRequest, FSM);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
@@ -107,14 +116,14 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
 void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
   baseRequest->parent = NULL;
   baseRequest->child = NULL;
-  FSM->current_floor = get_floor();
+  FSM->current_floor = -1;
   while (FSM->current_floor == -1) {
     hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
-    FSM->current_floor = get_floor();
+    FSM->current_floor = get_floor(FSM->current_floor);
   }
   handleAtFloor(FSM, baseRequest);
 
-  for(int i= 0; i < DOUBLEMAGIC+1; i++)
+  for (int i = 0; i < DOUBLEMAGIC + 1; i++)
     gettimeofday(&FSM->tv[i], NULL);
 }
 
@@ -129,9 +138,9 @@ int main() {
   // software init
 
   while (true) {
-    FSM->current_floor = get_floor();
+    FSM->current_floor = get_floor(FSM->current_floor);
     if (FSM->door_open) {
-      while (fabs(difftime(FSM->timestamp, time(0))) <= 1.5f) {
+      while (fabs(difftime(FSM->timestamp, time(0))) <= 1.0f) {
         pollHardware(FSM, baseRequest);
         if (hardware_read_obstruction_signal())
           FSM->timestamp = time(0);
@@ -142,7 +151,7 @@ int main() {
 
     if (FSM->moving) {
       while (FSM->current_floor != baseRequest->child->floor) {
-        FSM->current_floor = get_floor();
+        FSM->current_floor = get_floor(FSM->current_floor);
         pollHardware(FSM, baseRequest);
       }
       handleAtFloor(FSM, baseRequest);

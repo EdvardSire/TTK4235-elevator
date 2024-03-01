@@ -1,44 +1,11 @@
+// DUM
 #include "requests.h"
 #include <stdbool.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-
-void _dumpQueue(Request baseRequest[static 1]) {
-  Request * current = baseRequest;
-  while(current->child != NULL) {
-    printf("%d ", current->child->floor);
-    current = current->child;
-  }
-  printf("\n");
-}
-
-void _free_request(Request request[static 1]) {
-  Request *parent = request->parent;
-  if (request->child == NULL) { // At bottom
-    parent->child = NULL;
-  } 
-  else {
-    Request *child = request->child;
-    parent->child = child;
-    child->parent = parent;
-  }
-  free(request); // request
-}
-
-void _new_request(Request newRequest[static 1], Request parent[static 1],
-                  int floor, HardwareOrder orderType) {
-  if (newRequest == NULL)
-    exit(0);
-  newRequest->floor = floor;
-  newRequest->orderType = orderType;
-  newRequest->parent = parent;
-  newRequest->child = parent->child; // important this first
-  parent->child = newRequest;
-  // printf("New request, floor: %d \n", floor);
-}
-
-void insert_request_last(int floor, HardwareOrder orderType, Request baseRequest[static 1]) {
+void insert_request_last(int floor, HardwareOrder orderType,
+                         Request baseRequest[static 1]) {
   Request *current_request = baseRequest;
   // Get bottom request
   while (current_request->child != NULL)
@@ -49,7 +16,6 @@ void insert_request_last(int floor, HardwareOrder orderType, Request baseRequest
   new->parent = current_request;
   new->child = NULL;
   new->floor = floor;
-  new->orderType = orderType;
 
   // Update the bottom one
   current_request->child = new;
@@ -58,48 +24,54 @@ void insert_request_last(int floor, HardwareOrder orderType, Request baseRequest
   _dumpQueue(baseRequest);
 };
 
-void insert_request(int floor, HardwareOrder orderType,
-                    Request baseRequest[static 1], State state[static 1]) {
-  Request *currentRequest = baseRequest;
-   
+void handleRequest(int floorRequest, Request baseRequest[static 1],
+                   State FSM[static 1]) {
+  // No requests
+  if (baseRequest->child == NULL) {
+    _insertRequest(baseRequest, NULL, floorRequest);
+  } else { // Existings requests
 
-  while (currentRequest->child != NULL) {
-    currentRequest = currentRequest->child;
-    if(currentRequest->floor == floor && currentRequest->orderType == orderType){
-      return;
+    // TODO JUST PRUNE THE REQUEST
+    int requestInserted = false;
+    Request *current = baseRequest;
+    while (current->child != NULL) {
+      // Matches on the down
+      if((floorRequest > current->child->floor) && (floorRequest < FSM->current_floor)) {
+        _insertRequest(current, current->child, floorRequest);
+        requestInserted = true;
+        break;
+      }
+      // Matches on the up
+      if((floorRequest < current->child->floor) && (floorRequest > FSM->current_floor)) {
+        _insertRequest(current, current->child, floorRequest);
+        requestInserted = true;
+        break;
+      }
+      current = current->child;
     }
+
+    if(!requestInserted)
+      _insertRequest(current, NULL, floorRequest);
+
   }
 
-  int i = 0;
-  currentRequest = baseRequest;
-  while (currentRequest->child != NULL) {
-    i++;
-    currentRequest = currentRequest->child;
-    bool elevatorGoingUp = state->direction_up;
-    bool requestAboveCurrentGoal =
-        baseRequest->child->floor < currentRequest->floor;
-
-    if ((elevatorGoingUp && !requestAboveCurrentGoal &&
-         (currentRequest->orderType != HARDWARE_ORDER_DOWN) && !(state->previous_floor >= floor)) ||
-        (!elevatorGoingUp && requestAboveCurrentGoal &&
-         (currentRequest->orderType != HARDWARE_ORDER_UP) && !(state->previous_floor <= floor))) {
-      Request *newRequest = (Request *)malloc(sizeof(Request));
-      _new_request(newRequest, currentRequest->parent, floor, orderType);
-      // printf("Inserted %d\n", i);
-      // printf("Queue length: %d \n", queueLength(baseRequest));
-      return;
-    }
-  }
-
-  // If at end of queue, insert
-  if (currentRequest->child == NULL) {
-    Request *newRequest = (Request *)malloc(sizeof(Request));
-    _new_request(newRequest, currentRequest, floor, orderType);
-    // printf("Inserted end\n");
-    // printf("Queue length: %d \n", queueLength(baseRequest));
-  }
   _dumpQueue(baseRequest);
 }
+
+void _insertRequest(Request *parent, Request *child, int floor) {
+  Request *new = (Request *)malloc(sizeof(Request));
+  // Handle new
+  new->floor = floor;
+  new->parent = parent;
+  new->child = child;
+
+  // Update others
+  parent->child = new;
+  if (child != NULL)
+    child->parent = new;
+}
+
+///
 
 void purge_requests(Request base_req[static 1]) {
   Request *current_request = base_req;
@@ -135,4 +107,36 @@ int queueLength(Request BaseRequest[static 1]) {
   }
 
   return sum;
+}
+
+void _dumpQueue(Request baseRequest[static 1]) {
+  Request *current = baseRequest;
+  while (current->child != NULL) {
+    printf("%d ", current->child->floor);
+    current = current->child;
+  }
+  printf("\n");
+}
+
+void _free_request(Request request[static 1]) {
+  Request *parent = request->parent;
+  if (request->child == NULL) { // At bottom
+    parent->child = NULL;
+  } else {
+    Request *child = request->child;
+    parent->child = child;
+    child->parent = parent;
+  }
+  free(request); // request
+}
+
+void _new_request(Request newRequest[static 1], Request parent[static 1],
+                  int floor, HardwareOrder orderType) {
+  if (newRequest == NULL)
+    exit(0);
+  newRequest->floor = floor;
+  newRequest->parent = parent;
+  newRequest->child = parent->child; // important this first
+  parent->child = newRequest;
+  // printf("New request, floor: %d \n", floor);
 }
