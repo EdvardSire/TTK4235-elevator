@@ -8,5 +8,5 @@
     "clangd.arguments": [
         "-std=c11"
     ],
-    "clang-format.executable": "/usr/bin/clang-format-"
+    "clang-format.executable": "/usr/bin/clang-format-15"
 }

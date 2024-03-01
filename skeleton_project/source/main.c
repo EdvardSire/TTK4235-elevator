@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
+
+#define DOUBLEMAGIC MAGIC+1
 
 static void clear_all_order_lights() {
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++)
@@ -29,14 +32,41 @@ static int get_floor() {
   return -1;
 }
 
+int compareTimeNow(struct timeval old[MAGIC], int index) {
+    struct timeval end;
+    gettimeofday(&end, NULL);
+
+    double diff_sec = end.tv_sec - old[index].tv_sec;
+    double diff_usec = end.tv_usec - old[index].tv_usec;
+    double diff = diff_sec + (diff_usec / 1000000.0);
+
+    if(diff >= 0.2f) {
+      return true;
+    }
+    return false;
+}
+
+void freeAtFloor(Request baseRequest[static 1]) {
+  Request *childChild = baseRequest->child->child;
+  free(baseRequest->child);
+  if(childChild != NULL) {
+    childChild->parent = baseRequest;
+    baseRequest->child = childChild;
+  } else
+    baseRequest->child = NULL;
+}
+
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
   FSM->current_floor = get_floor();
   FSM->previous_floor = FSM->current_floor;
   FSM->moving = false;
   hardware_command_door_open(true);
-  floor_request_filled(FSM->current_floor, baseRequest);
-  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE, false);
+  FSM->moving = false;
+  if(baseRequest->child != NULL)
+    freeAtFloor(baseRequest);
+  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE,
+                               false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_UP, false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_DOWN, false);
   FSM->door_open = true;
@@ -84,15 +114,29 @@ void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
 
 void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
   lights();
+  int index = 0;
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
-    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN))
-      insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
 
-    if (hardware_read_order(floor, HARDWARE_ORDER_UP))
-      insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
+    if (hardware_read_order(floor, HARDWARE_ORDER_DOWN) && compareTimeNow(FSM->tv, index)) {
+      insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest);
+      // insert_request(floor, HARDWARE_ORDER_DOWN, baseRequest, FSM);
+      gettimeofday(&FSM->tv[index], NULL);
+    }
+    index++;
 
-    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE))
-      insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
+    if (hardware_read_order(floor, HARDWARE_ORDER_UP) && compareTimeNow(FSM->tv, index)) {
+      insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest);
+      // insert_request(floor, HARDWARE_ORDER_UP, baseRequest, FSM);
+      gettimeofday(&FSM->tv[index], NULL);
+    }
+    index++;
+
+    if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE) && compareTimeNow(FSM->tv, index)) {
+      insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest);
+      // insert_request(floor, HARDWARE_ORDER_INSIDE, baseRequest, FSM);
+      gettimeofday(&FSM->tv[index], NULL);
+    }
+    index++;
   }
   handleEmergencyStop(FSM, baseRequest);
 }
@@ -106,6 +150,9 @@ void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
     FSM->current_floor = get_floor();
   }
   handleAtFloor(FSM, baseRequest);
+
+  for(int i= 0; i < DOUBLEMAGIC+1; i++)
+    gettimeofday(&FSM->tv[i], NULL);
 }
 
 int main() {
