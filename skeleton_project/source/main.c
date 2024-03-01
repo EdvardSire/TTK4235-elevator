@@ -32,11 +32,11 @@ static int get_floor() {
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
   FSM->current_floor = get_floor();
+  FSM->previous_floor = FSM->current_floor;
   FSM->moving = false;
   hardware_command_door_open(true);
   floor_request_filled(FSM->current_floor, baseRequest);
-  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE,
-                               false);
+  hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE, false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_UP, false);
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_DOWN, false);
   FSM->door_open = true;
