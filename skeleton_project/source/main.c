@@ -90,9 +90,11 @@ int requestToConsume(Request baseRequest[static 1]) {
 void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
   FSM->moving = true;
   if (baseRequest->child->floor > FSM->current_floor)
-    hardware_command_movement(HARDWARE_MOVEMENT_UP);
+    {hardware_command_movement(HARDWARE_MOVEMENT_UP);
+    FSM->direction_up = true;}
   else
-    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+    {hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+    FSM->direction_up = false;}
 }
 
 void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
@@ -153,7 +155,6 @@ int main() {
   handleAtFloor(&FSM, &baseRequest);
   // End Init
 
-  // FSM.going_to_floor = 3;
   while (true) {
     FSM.current_floor = get_floor();
     hardware_command_stop_light(false);

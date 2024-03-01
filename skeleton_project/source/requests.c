@@ -61,7 +61,7 @@ void insert_request(int floor, HardwareOrder orderType,
   while (currentRequest->child != NULL) {
     i++;
     currentRequest = currentRequest->child;
-    bool elevatorGoingUp = state->current_floor < baseRequest->child->floor;
+    bool elevatorGoingUp = state->direction_up;
     bool requestAboveCurrentGoal =
         baseRequest->child->floor < currentRequest->floor;
 
