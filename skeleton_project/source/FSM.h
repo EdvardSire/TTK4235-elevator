@@ -1,10 +1,11 @@
 #ifndef ___FSM
 #define ___FSM
 
-#include <time.h>
+#include "hardware.h"
 #include <sys/time.h>
+#include <time.h>
 
-#define MAGIC ((HARDWARE_NUMBER_OF_FLOORS*3)-2)
+#define MAGIC ((HARDWARE_NUMBER_OF_FLOORS * 3) - 2)
 
 typedef struct {
   int current_floor;
