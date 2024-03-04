@@ -13,7 +13,7 @@
 
 #define DEBUG true
 
-void freeAtFloor(Request baseRequest[static 1]) {
+void freeAtFloorOld(Request baseRequest[static 1]) {
   Request *childChild = baseRequest->child->child;
   DEBUG && printf("Request freed: %p\n", baseRequest->child);
   free(baseRequest->child);
@@ -24,16 +24,30 @@ void freeAtFloor(Request baseRequest[static 1]) {
     baseRequest->child = NULL;
   
 }
+// void freeAtFloor(Request baseRequest[static 1], State FSM[static 1]) {
+//   int floorToFreed = baseRequest->child->floor;
+
+//   Request * current = baseRequest;
+//   while(current->child != NULL) {
+//     if(current->child->floor == floorToFreed) {
+//       Request * childChild = current->child->child;
+//       free(current->child);
+//       if (childChild != NULL) {
+//         childChild->
+//       }
+//     }
+//     current = current->child;
+//   }
+// }
 
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
   FSM->current_floor = get_floor(FSM->current_floor);
-  FSM->previous_floor = FSM->current_floor;
   FSM->moving = false;
   hardware_command_door_open(true);
   FSM->moving = false;
   if (baseRequest->child != NULL)
-    freeAtFloor(baseRequest);
+    freeAtFloorOld(baseRequest);
   FSM->door_open = true;
   FSM->timestamp = time(0);
 
@@ -61,11 +75,9 @@ void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
   FSM->moving = true;
   if (baseRequest->child->floor > FSM->current_floor) {
     hardware_command_movement(HARDWARE_MOVEMENT_UP);
-    FSM->direction_up = true;
     DEBUG && printf("Moving up\n");
   } else {
     hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
-    FSM->direction_up = false;
     DEBUG && printf("Moving down\n");
   }
 }
@@ -134,7 +146,7 @@ void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
   }
   handleAtFloor(FSM, baseRequest);
 
-  for (int i = 0; i < DOUBLEMAGIC + 1; i++)
+  for (int i = 0; i < MAGIC; i++)
     gettimeofday(&FSM->tv[i], NULL);
 
   DEBUG && printf("Definied state established\n");
@@ -145,7 +157,7 @@ int main() {
     exit(1);
 
   // software init
-  State *FSM = (State *)malloc(sizeof(Request));
+  State *FSM = (State *)malloc(sizeof(State));
   Request *baseRequest = (Request *)malloc(sizeof(Request));
   FSM_init(FSM, baseRequest);
   // software init
