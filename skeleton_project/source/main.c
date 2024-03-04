@@ -11,14 +11,18 @@
 
 #define INSERT_LAST false
 
+#define DEBUG true
+
 void freeAtFloor(Request baseRequest[static 1]) {
   Request *childChild = baseRequest->child->child;
+  DEBUG && printf("Request freed: %p\n", baseRequest->child);
   free(baseRequest->child);
   if (childChild != NULL) {
     childChild->parent = baseRequest;
     baseRequest->child = childChild;
   } else
     baseRequest->child = NULL;
+  
 }
 
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
@@ -42,11 +46,14 @@ void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
 void handleCloseDoor(State FSM[static 1]) {
   hardware_command_door_open(false);
   FSM->door_open = false;
+  DEBUG && printf("Door closed\n");
 }
 
 int requestToConsume(Request baseRequest[static 1]) {
   if (baseRequest->child == NULL)
     return false;
+
+  DEBUG && printf("RequestToConsume\n");
   return true;
 }
 
@@ -55,29 +62,33 @@ void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
   if (baseRequest->child->floor > FSM->current_floor) {
     hardware_command_movement(HARDWARE_MOVEMENT_UP);
     FSM->direction_up = true;
+    DEBUG && printf("Moving up\n");
   } else {
     hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
     FSM->direction_up = false;
+    DEBUG && printf("Moving down\n");
   }
 }
 
-void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
-  time_t stop_timestamp;
-  if (hardware_read_stop_signal()) {
-    hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-    FSM->moving = false;
-    purge_requests(baseRequest);
-    clear_all_order_lights();
-    stop_timestamp = time(0);
-    while (fabs(difftime(stop_timestamp, time(0))) <= 3.0f) {
-      // TODO POLL FOR REQUESTS
-      hardware_command_stop_light(true);
-      if (hardware_read_stop_signal())
-        stop_timestamp = time(0);
-    }
-  }
-}
+// void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
+//   time_t stop_timestamp;
+//   if (hardware_read_stop_signal()) {
+//     hardware_command_movement(HARDWARE_MOVEMENT_STOP);
+//     FSM->moving = false;
+//     purge_requests(baseRequest);
+//     clear_all_order_lights();
+//     stop_timestamp = time(0);
+//     while (fabs(difftime(stop_timestamp, time(0))) <= 3.0f) {
+//       // TODO POLL FOR REQUESTS
+//       hardware_command_stop_light(true);
+//       if (hardware_read_stop_signal())
+//         stop_timestamp = time(0);
+//     }
+//   }
+// }
 
+// HardwareOrder type is not used in the handleRequest function, but is there to
+// bookkeep the timestamps for each button
 void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
   lights();
   int index = 0;
@@ -86,8 +97,8 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN) &&
         compareTimeNow(FSM->tv, index)) {
       INSERT_LAST
-          ? insert_request_last(floor, HARDWARE_ORDER_DOWN, baseRequest)
-          : handleRequest(floor, baseRequest, FSM);
+      ? handleRequestLast(floor, baseRequest)
+      : handleRequest(floor, baseRequest, FSM);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
@@ -95,8 +106,8 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
     if (hardware_read_order(floor, HARDWARE_ORDER_UP) &&
         compareTimeNow(FSM->tv, index)) {
       INSERT_LAST
-          ? insert_request_last(floor, HARDWARE_ORDER_UP, baseRequest)
-          : handleRequest(floor, baseRequest, FSM);
+      ? handleRequestLast(floor, baseRequest)
+      : handleRequest(floor, baseRequest, FSM);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
@@ -104,13 +115,13 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
     if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE) &&
         compareTimeNow(FSM->tv, index)) {
       INSERT_LAST
-          ? insert_request_last(floor, HARDWARE_ORDER_INSIDE, baseRequest)
-          : handleRequest(floor, baseRequest, FSM);
+      ? handleRequestLast(floor, baseRequest)
+      : handleRequest(floor, baseRequest, FSM);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
   }
-  handleEmergencyStop(FSM, baseRequest);
+  // handleEmergencyStop(FSM, baseRequest);
 }
 
 void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
@@ -125,6 +136,8 @@ void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
 
   for (int i = 0; i < DOUBLEMAGIC + 1; i++)
     gettimeofday(&FSM->tv[i], NULL);
+
+  DEBUG && printf("Definied state established\n");
 }
 
 int main() {
