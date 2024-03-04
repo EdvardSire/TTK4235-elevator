@@ -51,7 +51,6 @@ void handleRequest(int floorRequest, Request baseRequest[static 1],
     _insertRequest(baseRequest, NULL, floorRequest);
   } else { // Existings requests
 
-    // TODO PRUNE THE REQUEST
     int requestInserted = false;
     Request *current = baseRequest;
     while (current->child != NULL) {

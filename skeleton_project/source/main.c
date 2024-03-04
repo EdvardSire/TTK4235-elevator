@@ -23,21 +23,32 @@ void freeAtFloorOld(Request baseRequest[static 1]) {
   } else
     baseRequest->child = NULL;
 }
-// void freeAtFloor(Request baseRequest[static 1], State FSM[static 1]) {
-//   int floorToFreed = baseRequest->child->floor;
 
-//   Request * current = baseRequest;
-//   while(current->child != NULL) {
-//     if(current->child->floor == floorToFreed) {
-//       Request * childChild = current->child->child;
-//       free(current->child);
-//       if (childChild != NULL) {
-//         childChild->
-//       }
-//     }
-//     current = current->child;
-//   }
-// }
+void removeRequest(Request * request) {
+  if(request->child == NULL) {
+    request->parent->child = NULL;
+    free(request);
+  } else {
+    request->parent->child = request->child;
+    request->child->parent = request->parent;
+    free(request);
+  }
+}
+
+void freeAtFloor(Request baseRequest[static 1]) {
+  int floorToFree = baseRequest->child->floor;
+
+  Request * current = baseRequest;
+  while(current->child != NULL) {
+    if(current->child->floor == floorToFree) {
+      removeRequest(current->child);
+      continue;
+    }
+    current = current->child;
+    if(current == NULL)
+      break;
+  }
+}
 
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   hardware_command_movement(HARDWARE_MOVEMENT_STOP);
@@ -46,7 +57,7 @@ void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   hardware_command_door_open(true);
   FSM->moving = false;
   if (baseRequest->child != NULL)
-    freeAtFloorOld(baseRequest);
+    freeAtFloor(baseRequest);
   FSM->door_open = true;
   FSM->timestamp = time(0);
 
