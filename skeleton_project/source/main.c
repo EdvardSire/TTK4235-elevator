@@ -153,7 +153,7 @@ void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
   FSM->current_floor = -1;
   while (FSM->current_floor == -1) {
     hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
-    FSM->current_floor = get_floor(FSM->current_floor);
+    FSM->current_floor = get_floor();
   }
   handleAtFloor(FSM, baseRequest);
 
@@ -174,7 +174,7 @@ int main() {
   // software init
 
   while (true) {
-    FSM->current_floor = get_floor(FSM->current_floor);
+    FSM->current_floor = get_floor();
     if (FSM->door_open) {
       while (fabs(difftime(FSM->timestamp, time(0))) <= 1.0f) {
         pollHardware(FSM, baseRequest);
@@ -187,7 +187,7 @@ int main() {
 
     if (FSM->moving) {
       while (FSM->current_floor != baseRequest->child->floor) {
-        FSM->current_floor = get_floor(FSM->current_floor);
+        FSM->current_floor = get_floor();
         pollHardware(FSM, baseRequest);
       }
       handleAtFloor(FSM, baseRequest);

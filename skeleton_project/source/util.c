@@ -31,12 +31,12 @@ void lights() {
         hardware_command_order_light(floor, order_type, 1);
 }
 
-int get_floor(int sameFloor) {
+int get_floor() {
   for (int i = 0; i < HARDWARE_NUMBER_OF_FLOORS; i++) {
     if (hardware_read_floor_sensor(i)) {
       hardware_command_floor_indicator_on(i);
       return i;
     }
   }
-  return sameFloor;
+  return -1;
 }
