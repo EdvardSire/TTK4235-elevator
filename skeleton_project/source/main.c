@@ -145,7 +145,7 @@ int main() {
     exit(1);
 
   // software init
-  State *FSM = (State *)malloc(sizeof(Request));
+  State *FSM = (State *)malloc(sizeof(State));
   Request *baseRequest = (Request *)malloc(sizeof(Request));
   FSM_init(FSM, baseRequest);
   // software init
