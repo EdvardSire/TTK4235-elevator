@@ -76,3 +76,19 @@ void handleRequest(int floorRequest, Request baseRequest[static 1],
   }
   _dumpQueue(baseRequest);
 }
+
+void deleteAllRequest(Request baseRequest[static 1]) {
+  while(baseRequest->child != NULL)
+    removeRequest(baseRequest->child);
+}
+
+void removeRequest(Request request[static 1]) {
+  if(request->child == NULL) {
+    request->parent->child = NULL;
+    free(request);
+  } else {
+    request->parent->child = request->child;
+    request->child->parent = request->parent;
+    free(request);
+  }
+}

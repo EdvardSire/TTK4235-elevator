@@ -11,6 +11,7 @@ typedef struct {
   int current_floor;
   int door_open;
   int moving;
+  int stop;
   struct timeval tv[MAGIC];
   time_t timestamp; // seconds
 } State;

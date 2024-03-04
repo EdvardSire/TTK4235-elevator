@@ -16,4 +16,8 @@ void handleRequestLast(int floor, Request baseRequest[static 1]);
 void handleRequest(int floor, Request baseRequest[static 1],
                    State FSM[static 1]);
 
+void deleteAllRequest(Request baseRequest[static 1]);
+
+void removeRequest(Request request[static 1]);
+
 #endif

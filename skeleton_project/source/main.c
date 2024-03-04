@@ -24,28 +24,17 @@ void freeAtFloorOld(Request baseRequest[static 1]) {
     baseRequest->child = NULL;
 }
 
-void removeRequest(Request * request) {
-  if(request->child == NULL) {
-    request->parent->child = NULL;
-    free(request);
-  } else {
-    request->parent->child = request->child;
-    request->child->parent = request->parent;
-    free(request);
-  }
-}
-
 void freeAtFloor(Request baseRequest[static 1]) {
   int floorToFree = baseRequest->child->floor;
 
-  Request * current = baseRequest;
-  while(current->child != NULL) {
-    if(current->child->floor == floorToFree) {
+  Request *current = baseRequest;
+  while (current->child != NULL) {
+    if (current->child->floor == floorToFree) {
       removeRequest(current->child);
       continue;
     }
     current = current->child;
-    if(current == NULL)
+    if (current == NULL)
       break;
   }
 }
@@ -55,10 +44,9 @@ void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
   FSM->current_floor = get_floor(FSM->current_floor);
   FSM->moving = false;
   hardware_command_door_open(true);
-  FSM->moving = false;
+  FSM->door_open = true;
   if (baseRequest->child != NULL)
     freeAtFloor(baseRequest);
-  FSM->door_open = true;
   FSM->timestamp = time(0);
 
   hardware_command_order_light(FSM->current_floor, HARDWARE_ORDER_INSIDE,
@@ -92,28 +80,32 @@ void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
   }
 }
 
-// void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1])
-// {
-//   time_t stop_timestamp;
-//   if (hardware_read_stop_signal()) {
-//     hardware_command_movement(HARDWARE_MOVEMENT_STOP);
-//     FSM->moving = false;
-//     purge_requests(baseRequest);
-//     clear_all_order_lights();
-//     stop_timestamp = time(0);
-//     while (fabs(difftime(stop_timestamp, time(0))) <= 3.0f) {
-//       // TODO POLL FOR REQUESTS
-//       hardware_command_stop_light(true);
-//       if (hardware_read_stop_signal())
-//         stop_timestamp = time(0);
-//     }
-//   }
-// }
+void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
+  if (hardware_read_stop_signal()) {
+    if (doorCanOpen()) {
+      hardware_command_door_open(true);
+      FSM->door_open = true;
+    } else
+      FSM->door_open = false;
+    hardware_command_movement(HARDWARE_MOVEMENT_STOP);
+    FSM->moving = false;
+    FSM->timestamp = time(0);
+    FSM->stop = true;
+    deleteAllRequest(baseRequest);
+    clear_all_order_lights();
+
+    // Don't accept orders
+    while (hardware_read_stop_signal()) {
+      hardware_command_stop_light(true);
+    }
+    hardware_command_stop_light(false);
+  }
+}
 
 // HardwareOrder type is not used in the handleRequest function, but is there to
 // bookkeep the timestamps for each button
 void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
-  lights();
+  handleEmergencyStop(FSM, baseRequest);
   int index = 0;
   for (int floor = 0; floor < HARDWARE_NUMBER_OF_FLOORS; floor++) {
 
@@ -144,16 +136,17 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
     }
     index++;
   }
-  // handleEmergencyStop(FSM, baseRequest);
+  lights();
 }
 
 void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
   baseRequest->parent = NULL;
   baseRequest->child = NULL;
   FSM->current_floor = -1;
+  FSM->stop = false;
   while (FSM->current_floor == -1) {
     hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
-    FSM->current_floor = get_floor();
+    FSM->current_floor = get_floor(FSM->current_floor);
   }
   handleAtFloor(FSM, baseRequest);
 
@@ -174,7 +167,8 @@ int main() {
   // software init
 
   while (true) {
-    FSM->current_floor = get_floor();
+    FSM->current_floor = get_floor(FSM->current_floor);
+    pollHardware(FSM, baseRequest);
     if (FSM->door_open) {
       while (fabs(difftime(FSM->timestamp, time(0))) <= 1.0f) {
         pollHardware(FSM, baseRequest);
@@ -182,17 +176,20 @@ int main() {
           FSM->timestamp = time(0);
       }
       handleCloseDoor(FSM);
-    } else
-      pollHardware(FSM, baseRequest);
+    }
 
     if (FSM->moving) {
-      while (FSM->current_floor != baseRequest->child->floor) {
-        FSM->current_floor = get_floor();
+      FSM->stop = false;
+      while (!FSM->stop && (FSM->current_floor != baseRequest->child->floor)) {
+        FSM->current_floor = get_floor(FSM->current_floor);
         pollHardware(FSM, baseRequest);
       }
-      handleAtFloor(FSM, baseRequest);
+      if(doorCanOpen())
+        handleAtFloor(FSM, baseRequest);
+
     } else if (requestToConsume(baseRequest))
       consumeRequest(FSM, baseRequest);
+
   }
   return 0;
 }
