@@ -3,18 +3,18 @@
 #include <stdbool.h>
 
 int compareTimeNow(struct timeval old[MAGIC], int index) {
-    struct timeval end;
-    gettimeofday(&end, NULL);
+  struct timeval end;
+  gettimeofday(&end, NULL);
 
-    double diff_sec = end.tv_sec - old[index].tv_sec;
-    double diff_usec = end.tv_usec - old[index].tv_usec;
-    double diff = diff_sec + (diff_usec / 1000000.0);
+  double diff_sec = end.tv_sec - old[index].tv_sec;
+  double diff_usec = end.tv_usec - old[index].tv_usec;
+  double diff = diff_sec + (diff_usec / 1000000.0);
 
-    double THRESHOLD = 0.2f;
-    if(diff >= THRESHOLD) {
-      return true;
-    }
-    return false;
+  double THRESHOLD = 0.2f;
+  if (diff >= THRESHOLD) {
+    return true;
+  }
+  return false;
 }
 
 void clear_all_order_lights() {

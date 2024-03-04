@@ -15,14 +15,13 @@
 
 void freeAtFloorOld(Request baseRequest[static 1]) {
   Request *childChild = baseRequest->child->child;
-  DEBUG && printf("Request freed: %p\n", baseRequest->child);
+  DEBUG &&printf("Request freed: %p\n", baseRequest->child);
   free(baseRequest->child);
   if (childChild != NULL) {
     childChild->parent = baseRequest;
     baseRequest->child = childChild;
   } else
     baseRequest->child = NULL;
-  
 }
 // void freeAtFloor(Request baseRequest[static 1], State FSM[static 1]) {
 //   int floorToFreed = baseRequest->child->floor;
@@ -60,14 +59,14 @@ void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]) {
 void handleCloseDoor(State FSM[static 1]) {
   hardware_command_door_open(false);
   FSM->door_open = false;
-  DEBUG && printf("Door closed\n");
+  DEBUG &&printf("Door closed\n");
 }
 
 int requestToConsume(Request baseRequest[static 1]) {
   if (baseRequest->child == NULL)
     return false;
 
-  DEBUG && printf("RequestToConsume\n");
+  DEBUG &&printf("RequestToConsume\n");
   return true;
 }
 
@@ -75,14 +74,15 @@ void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
   FSM->moving = true;
   if (baseRequest->child->floor > FSM->current_floor) {
     hardware_command_movement(HARDWARE_MOVEMENT_UP);
-    DEBUG && printf("Moving up\n");
+    DEBUG &&printf("Moving up\n");
   } else {
     hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
-    DEBUG && printf("Moving down\n");
+    DEBUG &&printf("Moving down\n");
   }
 }
 
-// void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {
+// void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1])
+// {
 //   time_t stop_timestamp;
 //   if (hardware_read_stop_signal()) {
 //     hardware_command_movement(HARDWARE_MOVEMENT_STOP);
@@ -149,7 +149,7 @@ void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
   for (int i = 0; i < MAGIC; i++)
     gettimeofday(&FSM->tv[i], NULL);
 
-  DEBUG && printf("Definied state established\n");
+  DEBUG &&printf("Definied state established\n");
 }
 
 int main() {

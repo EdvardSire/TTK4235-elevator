@@ -1,9 +1,7 @@
-// DUM
 #include "requests.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 
 void _insertRequest(Request *parent, Request *child, int floor) {
   Request *new = (Request *)malloc(sizeof(Request));
