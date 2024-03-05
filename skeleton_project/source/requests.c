@@ -45,45 +45,134 @@ void handleRequestLast(int floor, Request baseRequest[static 1]) {
   _dumpQueue(baseRequest);
 };
 
-void handleRequest(int floorRequest, Request baseRequest[static 1],
-                   State FSM[static 1]) {
+// 1.
+void handleRequest(State FSM[static 1], Request baseRequest[static 1],
+                   int floorRequest, HardwareOrder orderType) {
   if (baseRequest->child == NULL) { // No requests in queue
     _insertRequest(baseRequest, NULL, floorRequest);
+    _dumpQueue(baseRequest);
   } else { // Existings requests
 
-    int requestInserted = false;
-    Request *current = baseRequest;
-    while (current->child != NULL) {
-      // Matches on the down
-      if ((floorRequest > current->child->floor) &&
-          (floorRequest < FSM->current_floor)) {
-        _insertRequest(current, current->child, floorRequest);
-        requestInserted = true;
-        break;
-      }
+    // Get direction
+    int current_direction;
+    if (baseRequest->child->floor > FSM->current_floor)
+      current_direction = true; // up
+    else
+      current_direction = false; // down
+
+    int order_direction;
+    if (orderType == HARDWARE_ORDER_UP)
+      order_direction = true;
+    else
+      order_direction = false;
+
+    // Inside orders
+    if (orderType == HARDWARE_ORDER_INSIDE) {
       // Matches on the up
-      if ((floorRequest < current->child->floor) &&
-          (floorRequest > FSM->current_floor)) {
-        _insertRequest(current, current->child, floorRequest);
-        requestInserted = true;
-        break;
+      if ((FSM->current_floor < floorRequest) &&
+          (floorRequest < baseRequest->child->floor)) {
+        _insertRequest(baseRequest, baseRequest->child, floorRequest);
+        _dumpQueue(baseRequest);
+        return;
       }
-      current = current->child;
+      // Mathces on the down
+      if ((FSM->current_floor > floorRequest) &&
+          (floorRequest > baseRequest->child->floor)) {
+        _insertRequest(baseRequest, baseRequest->child, floorRequest);
+        _dumpQueue(baseRequest);
+        return;
+      }
+      // Check child child
+      if (baseRequest->child->child != NULL) {
+        // Matches on the up
+        if ((FSM->current_floor < floorRequest) &&
+            (floorRequest < baseRequest->child->child->floor)) {
+          _insertRequest(baseRequest, baseRequest->child, floorRequest);
+          _dumpQueue(baseRequest);
+          return;
+        }
+        // Mathces on the down
+        if ((FSM->current_floor > floorRequest) &&
+            (floorRequest > baseRequest->child->child->floor)) {
+          _insertRequest(baseRequest, baseRequest->child, floorRequest);
+          _dumpQueue(baseRequest);
+          return;
+        }
+      }
+
+    } else if ((current_direction == order_direction)) { // Hall up or down orders
+      // Matches on the up
+      if ((FSM->current_floor < floorRequest) &&
+          (floorRequest < baseRequest->child->floor)) {
+        _insertRequest(baseRequest, baseRequest->child, floorRequest);
+        _dumpQueue(baseRequest);
+        return;
+      }
+      // Mathces on the down
+      if ((FSM->current_floor > floorRequest) &&
+          (floorRequest > baseRequest->child->floor)) {
+        _insertRequest(baseRequest, baseRequest->child, floorRequest);
+        _dumpQueue(baseRequest);
+        return;
+      }
+      // Check child child
+      if (baseRequest->child->child != NULL) {
+        // Matches on the up
+        if ((FSM->current_floor < floorRequest) &&
+            (floorRequest < baseRequest->child->child->floor)) {
+          _insertRequest(baseRequest, baseRequest->child, floorRequest);
+          _dumpQueue(baseRequest);
+          return;
+        }
+        // Mathces on the down
+        if ((FSM->current_floor > floorRequest) &&
+            (floorRequest > baseRequest->child->child->floor)) {
+          _insertRequest(baseRequest, baseRequest->child, floorRequest);
+          _dumpQueue(baseRequest);
+          return;
+        }
+      }
     }
 
-    if (!requestInserted)
-      _insertRequest(current, NULL, floorRequest);
+    // Nothing happened
+    Request *current = baseRequest;
+    while (current->child != NULL)
+      current = current->child;
+    _insertRequest(current, NULL, floorRequest);
+    _dumpQueue(baseRequest);
   }
-  _dumpQueue(baseRequest);
+
+  // int requestInserted = false;
+  // Request *current = baseRequest;
+  // while (current->child != NULL) {
+  //   // Matches on the down
+  //   if ((floorRequest > current->child->floor) &&
+  //       (floorRequest < FSM->current_floor)) {
+  //     _insertRequest(current, current->child, floorRequest);
+  //     requestInserted = true;
+  //     break;
+  //   }
+  //   // Matches on the up
+  //   if ((floorRequest < current->child->floor) &&
+  //       (floorRequest > FSM->current_floor)) {
+  //     _insertRequest(current, current->child, floorRequest);
+  //     requestInserted = true;
+  //     break;
+  //   }
+  //   current = current->child;
+  // }
+
+  // if (!requestInserted)
+  //   _insertRequest(current, NULL, floorRequest);
 }
 
 void deleteAllRequest(Request baseRequest[static 1]) {
-  while(baseRequest->child != NULL)
+  while (baseRequest->child != NULL)
     removeRequest(baseRequest->child);
 }
 
 void removeRequest(Request request[static 1]) {
-  if(request->child == NULL) {
+  if (request->child == NULL) {
     request->parent->child = NULL;
     free(request);
   } else {

@@ -13,8 +13,8 @@ struct Request {
 
 void handleRequestLast(int floor, Request baseRequest[static 1]);
 
-void handleRequest(int floor, Request baseRequest[static 1],
-                   State FSM[static 1]);
+
+void handleRequest(State FSM[static 1], Request baseRequest[static 1], int floorRequest, HardwareOrder orderType);
 
 void deleteAllRequest(Request baseRequest[static 1]);
 

@@ -111,27 +111,21 @@ void pollHardware(State FSM[static 1], Request baseRequest[static 1]) {
 
     if (hardware_read_order(floor, HARDWARE_ORDER_DOWN) &&
         compareTimeNow(FSM->tv, index)) {
-      INSERT_LAST
-      ? handleRequestLast(floor, baseRequest)
-      : handleRequest(floor, baseRequest, FSM);
+      handleRequest(FSM, baseRequest, floor, HARDWARE_ORDER_DOWN);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
 
     if (hardware_read_order(floor, HARDWARE_ORDER_UP) &&
         compareTimeNow(FSM->tv, index)) {
-      INSERT_LAST
-      ? handleRequestLast(floor, baseRequest)
-      : handleRequest(floor, baseRequest, FSM);
+      handleRequest(FSM, baseRequest, floor, HARDWARE_ORDER_UP);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
 
     if (hardware_read_order(floor, HARDWARE_ORDER_INSIDE) &&
         compareTimeNow(FSM->tv, index)) {
-      INSERT_LAST
-      ? handleRequestLast(floor, baseRequest)
-      : handleRequest(floor, baseRequest, FSM);
+      handleRequest(FSM, baseRequest, floor, HARDWARE_ORDER_INSIDE);
       gettimeofday(&FSM->tv[index], NULL);
     }
     index++;
@@ -184,12 +178,11 @@ int main() {
         FSM->current_floor = get_floor(FSM->current_floor);
         pollHardware(FSM, baseRequest);
       }
-      if(doorCanOpen())
+      if (doorCanOpen())
         handleAtFloor(FSM, baseRequest);
 
     } else if (requestToConsume(baseRequest))
       consumeRequest(FSM, baseRequest);
-
   }
   return 0;
 }
