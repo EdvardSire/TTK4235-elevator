@@ -1,19 +1,20 @@
 @startuml
-[*] --> Idle
+[*] --> AtFloor
 
-Idle --> MovingUp : Call received
-Idle --> MovingDown : Call received
+AtFloor --> DoorOpen : / OpenDoor
+DoorOpen --> DoorOpen : PollObstruct / Restart timer
+DoorOpen --> DoorClosed : wait 3s
+DoorClosed --> Moving : [RequestToConsume] / ConsumeRequest
 
-MovingUp --> Idle : Reached desired floor
-MovingDown --> Idle : Reached desired floor
+Moving --> AtFloor: PollFloorSensor == GoingToFloor / UpdateIndicators
+Moving --> Moving: PollFloorSensor != GoingToFloor / UpdateIndicators
 
-Idle --> EmergencyStop : Stop button pressed
-EmergencyStop --> Idle : Stop button released
+AtFloor --> EmergencyStop : PollStop / ResetQueue & OpenDoor
+DoorOpen --> EmergencyStop : PollStop / ResetQueue
+DoorClosed --> EmergencyStop : PollStop / ResetQueue
+Moving --> EmergencyStop : PollStop / ResetQueue
+EmergencyStop --> DoorOpen : NoPollStop [AtFloor] / OpenDoor
+EmergencyStop --> DoorClosed : NoPollStop [NotAtFloor]
 
-Idle --> DoorOpen : Elevator stops at a floor
-DoorOpen --> DoorClosed : After 3 seconds
-
-DoorClosed --> DoorOpen : Open door
-DoorOpen --> DoorClosed : Close door
 
 @enduml
