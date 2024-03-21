@@ -1,8 +1,7 @@
 #include "util.h"
+#include "debug.h"
 #include <stdbool.h>
 #include <stdio.h>
-
-#define DEBUG true
 
 void FSM_init(State FSM[static 1], Request baseRequest[static 1]) {
   baseRequest->parent = NULL;
@@ -105,25 +104,6 @@ void handleCloseDoor(State FSM[static 1]) {
   hardware_command_door_open(false);
   FSM->door_open = false;
   DEBUG &&printf("Door closed\n");
-}
-
-int requestToConsume(Request baseRequest[static 1]) {
-  if (baseRequest->child == NULL)
-    return false;
-
-  DEBUG &&printf("RequestToConsume\n");
-  return true;
-}
-
-void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
-  FSM->moving = true;
-  if (baseRequest->child->floor > FSM->current_floor) {
-    hardware_command_movement(HARDWARE_MOVEMENT_UP);
-    DEBUG &&printf("Moving up\n");
-  } else {
-    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
-    DEBUG &&printf("Moving down\n");
-  }
 }
 
 void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]) {

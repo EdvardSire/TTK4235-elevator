@@ -5,6 +5,7 @@
 #include "FSM.h"
 #include "hardware.h"
 #include "requests.h"
+#include "debug.h"
 
 void FSM_init(State FSM[static 1], Request baseRequest[static 1]);
 
@@ -23,10 +24,6 @@ void freeAtFloor(Request baseRequest[static 1]);
 void handleAtFloor(State FSM[static 1], Request baseRequest[static 1]);
 
 void handleCloseDoor(State FSM[static 1]);
-
-int requestToConsume(Request baseRequest[static 1]);
-
-void consumeRequest(State FSM[static 1], Request baseRequest[static 1]);
 
 void handleEmergencyStop(State FSM[static 1], Request baseRequest[static 1]);
 

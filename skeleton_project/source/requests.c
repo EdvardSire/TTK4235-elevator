@@ -141,29 +141,25 @@ void handleRequest(State FSM[static 1], Request baseRequest[static 1],
     _insertRequest(current, NULL, floorRequest);
     _dumpQueue(baseRequest);
   }
+}
 
-  // int requestInserted = false;
-  // Request *current = baseRequest;
-  // while (current->child != NULL) {
-  //   // Matches on the down
-  //   if ((floorRequest > current->child->floor) &&
-  //       (floorRequest < FSM->current_floor)) {
-  //     _insertRequest(current, current->child, floorRequest);
-  //     requestInserted = true;
-  //     break;
-  //   }
-  //   // Matches on the up
-  //   if ((floorRequest < current->child->floor) &&
-  //       (floorRequest > FSM->current_floor)) {
-  //     _insertRequest(current, current->child, floorRequest);
-  //     requestInserted = true;
-  //     break;
-  //   }
-  //   current = current->child;
-  // }
+int requestToConsume(Request baseRequest[static 1]) {
+  if (baseRequest->child == NULL)
+    return false;
 
-  // if (!requestInserted)
-  //   _insertRequest(current, NULL, floorRequest);
+  DEBUG &&printf("RequestToConsume\n");
+  return true;
+}
+
+void consumeRequest(State FSM[static 1], Request baseRequest[static 1]) {
+  FSM->moving = true;
+  if (baseRequest->child->floor > FSM->current_floor) {
+    hardware_command_movement(HARDWARE_MOVEMENT_UP);
+    DEBUG &&printf("Moving up\n");
+  } else {
+    hardware_command_movement(HARDWARE_MOVEMENT_DOWN);
+    DEBUG &&printf("Moving down\n");
+  }
 }
 
 void deleteAllRequest(Request baseRequest[static 1]) {

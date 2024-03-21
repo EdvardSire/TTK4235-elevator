@@ -3,6 +3,7 @@
 
 #include "FSM.h"
 #include "hardware.h"
+#include "debug.h"
 
 typedef struct Request Request;
 struct Request {
@@ -13,10 +14,13 @@ struct Request {
 
 void handleRequestLast(int floor, Request baseRequest[static 1]);
 
-
 void handleRequest(State FSM[static 1], Request baseRequest[static 1], int floorRequest, HardwareOrder orderType);
 
 void deleteAllRequest(Request baseRequest[static 1]);
+
+int requestToConsume(Request baseRequest[static 1]);
+
+void consumeRequest(State FSM[static 1], Request baseRequest[static 1]);
 
 void removeRequest(Request request[static 1]);
 
