@@ -1,5 +1,5 @@
 CompileFlags:                     # Tweak the parse settings
-  Add: [-xc, -std=c99, -Wall]             # treat all files as C++, enable more warnings
+  Add: [-xc, -std=c99, -Wall]             # treat all files as C, enable more warnings
 
 
 InlayHints:
